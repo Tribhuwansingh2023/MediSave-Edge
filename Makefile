@@ -72,7 +72,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | dirs
 
 # Main MediSave Edge CLI Executable
 $(APP_BIN): $(CORE_OBJS) $(SRC_DIR)/main.cpp | dirs
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	$(CXX) -Wall -Wextra -O1 -g -std=c++17 -pthread $(INCLUDES) $^ $(LDFLAGS) -o $@
 	@echo [Build] Main application successfully compiled: $(APP_BIN)
 
 # Standalone MediSave TCP Server Binary (Facility Simulation Hub)
