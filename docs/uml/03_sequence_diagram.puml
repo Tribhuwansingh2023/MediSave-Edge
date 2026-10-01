@@ -1,0 +1,66 @@
+@startuml 03_sequence_diagram
+skinparam monochrome false
+skinparam shadowing false
+
+actor "Pharmacist / Operator" as User
+participant "MediSave CLI (main)" as App
+participant "TemperatureMonitor" as TempMon
+participant "DeviceSensor (HAL)" as Sensor
+entity "/dev/medisave" as DevNode
+participant "Linux Kernel Driver" as Driver
+participant "AlertSystem" as Alerts
+participant "RedistributionEngine" as Redist
+participant "SystemMonitor" as SysMon
+
+== Environmental Telemetry & Triage Sequence ==
+
+User -> App : Select Option 17 (Show System Dashboard)
+activate App
+
+App -> TempMon : updateReading()
+activate TempMon
+
+TempMon -> Sensor : readTemperature(temp) & getStatus(status)
+activate Sensor
+
+Sensor -> DevNode : open("/dev/medisave")
+activate DevNode
+DevNode -> Driver : medisave_open()
+DevNode <-- Driver : 0 (Success)
+
+Sensor -> DevNode : ioctl(MEDISAVE_IOC_GET_DATA, &data)
+DevNode -> Driver : copy_to_user()
+DevNode <-- Driver : Temperature = 11.50 C, Status = "CRITICAL"
+Sensor <-- DevNode : Telemetry payload
+deactivate DevNode
+
+TempMon <-- Sensor : Success
+deactivate Sensor
+App <-- TempMon : Reading Snapshot (11.50 C, CRITICAL)
+deactivate TempMon
+
+== Excursion Alert Generation ==
+
+App -> Alerts : generateAlerts(inventory, ..., &monitor)
+activate Alerts
+Alerts -> Alerts : Push [CRITICAL] Storage Excursion (Score 950)
+App <-- Alerts : Priority Queue (Max-Heap)
+deactivate Alerts
+
+== Redistribution Analysis & Host Telemetry ==
+
+App -> Redist : generateRecommendations()
+activate Redist
+App <-- Redist : Proposals (e.g. Facility-A -> Facility-B, 30 units)
+deactivate Redist
+
+App -> SysMon : getCpuInfo() & getMemoryInfo() & getUptime()
+activate SysMon
+SysMon -> SysMon : Parse /proc/stat, /proc/meminfo, /proc/uptime
+App <-- SysMon : Host System Metrics
+deactivate SysMon
+
+App -> User : Render Executive Dashboard on Terminal
+deactivate App
+
+@enduml

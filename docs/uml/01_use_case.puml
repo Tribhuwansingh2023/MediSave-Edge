@@ -1,0 +1,46 @@
+@startuml 01_use_case
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+
+actor "Pharmacist / Operator" as User
+actor "Remote Facility Node" as Facility
+actor "Linux Kernel (/dev/medisave)" as Driver
+
+rectangle "MediSave Edge System" {
+    usecase "UC-01: Manage Medicine Inventory" as UC1
+    usecase "UC-02: Search & Filter Medicines" as UC2
+    usecase "UC-03: Evaluate Shelf Expiry" as UC3
+    usecase "UC-04: View Prioritized Alert Queue" as UC4
+    usecase "UC-05: Read Live Storage Temperature" as UC5
+    usecase "UC-06: Set Simulated Temperature" as UC6
+    usecase "UC-07: Show Storage Condition & Violations" as UC7
+    usecase "UC-08: Start Background Monitoring" as UC8
+    usecase "UC-09: Stop Background Monitoring" as UC9
+    usecase "UC-10: Transmit Facility Telemetry" as UC10
+    usecase "UC-11: Analyze Redistribution Recommendations" as UC11
+    usecase "UC-12: Inspect Host Health (/proc)" as UC12
+    usecase "UC-13: View Executive Dashboard" as UC13
+    usecase "UC-14: Graceful System Shutdown" as UC14
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC9
+User --> UC10
+User --> UC11
+User --> UC12
+User --> UC13
+User --> UC14
+
+Facility --> UC10 : TCP Port 5000
+Driver --> UC5 : IOCTL / VFS Read
+Driver --> UC6 : IOCTL / VFS Write
+@enduml

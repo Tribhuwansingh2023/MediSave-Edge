@@ -1,0 +1,61 @@
+@startuml 04_activity_diagram
+skinparam monochrome false
+skinparam shadowing false
+
+start
+:Initialize POSIX Signal Handlers (SIGINT, SIGTERM, SIGUSR1);
+:Load Persistent Inventory from data/medicines.txt;
+:Connect to Character Device Driver (/dev/medisave);
+
+if (Driver Accessible?) then (yes)
+    :Retrieve Initial Chamber Temperature (milli-Celsius);
+    :Classify Status (LOW, NORMAL, WARNING, CRITICAL);
+else (no)
+    :Log Non-Fatal Notice;
+    :Continue in Degraded Inventory Mode;
+endif
+
+:Display Main 18-Option Menu;
+
+repeat
+    :Await User Input or Signal;
+    if (Menu Action Selected?) then
+        partition "Inventory Operations" {
+            :Add / Update / Search / Dispense Stock;
+            :Serialize Updates to data/medicines.txt;
+        }
+    elseif (Storage Operations?) then
+        partition "Environmental Monitoring" {
+            :Query Live Telemetry from /dev/medisave;
+            :Check Medicine Thermal Tolerance Breaches;
+            :Trigger Storage Alert if Excursion Detected;
+        }
+    elseif (Facility Communication?) then
+        partition "Distributed Networking" {
+            :Receive Facility Telemetry over TCP (Port 5000);
+            :Ingest SURPLUS / SHORTAGE Messages into Buffer;
+            :Analyze Redistribution Matches;
+            :Display Advisory Decision-Support Proposals;
+        }
+    elseif (System Health & Dashboard?) then
+        partition "Host & System Telemetry" {
+            :Parse /proc/cpuinfo & /proc/stat (CPU Utilization %);
+            :Parse /proc/meminfo (Total, Available, Used RAM);
+            :Parse /proc/uptime (System Uptime Duration);
+            :Render Consolidated System Dashboard;
+        }
+    endif
+repeat while (User selects Exit or Signal Received?) is (no)
+->yes;
+
+partition "Graceful Shutdown" {
+    :Stop & Join In-Process Threads (ThreadedMonitor);
+    :Terminate & Harvest Child Processes (waitpid);
+    :Close TCP Server & Client Sockets;
+    :Unlink Shared Memory & POSIX Semaphores;
+    :Save Final Inventory to Disk;
+    :Close /dev/medisave File Descriptor;
+}
+
+stop
+@enduml

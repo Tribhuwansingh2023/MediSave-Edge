@@ -1,0 +1,133 @@
+@startuml 02_class_diagram
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam shadowing false
+
+class Medicine {
+    - id : string
+    - name : string
+    - batchNumber : string
+    - quantity : int
+    - expiryDate : string
+    - minStock : int
+    - maxStock : int
+    - minTemperature : double
+    - maxTemperature : double
+    + getId() : string
+    + getName() : string
+    + getQuantity() : int
+    + isLowStock() : bool
+    + isTemperatureViolated(temp : double) : bool
+    + serialize() : string
+    + deserialize(line : string, outMed : Medicine&) : bool
+}
+
+class InventoryManager {
+    - medicines : unordered_map<string, Medicine>
+    + addMedicine(med : Medicine) : bool
+    + removeMedicine(id : string) : bool
+    + updateMedicine(med : Medicine) : bool
+    + findMedicineById(id : string) : Medicine*
+    + findMedicinesByName(query : string) : vector<Medicine>
+    + getLowStockMedicines() : vector<Medicine>
+    + getExpiredMedicines() : vector<pair<Medicine, int>>
+    + getExpiringSoonMedicines(days : int) : vector<pair<Medicine, int>>
+    + loadFromFile(path : string) : bool
+    + saveToFile(path : string) : bool
+}
+
+class DeviceSensor {
+    - devicePath : string
+    - fileDescriptor : int
+    - connected : bool
+    + connect() : bool
+    + disconnect() : void
+    + readTemperature(temp : double&) : bool
+    + setTemperature(temp : double) : bool
+    + getStatus(status : string&) : bool
+}
+
+class StorageMonitor {
+    - sensor : DeviceSensor&
+    + getCurrentCondition(temp : double&, status : string&) : bool
+    + displayCondition() : void
+    + isCritical() : bool
+    + isWarning() : bool
+}
+
+class TemperatureMonitor {
+    - sensor : DeviceSensor&
+    - latestReading : TemperatureReading
+    - history : vector<TemperatureReading>
+    + updateReading() : bool
+    + getLatestReading() : TemperatureReading
+    + setSimulatedTemperature(temp : double) : bool
+    + getStorageAlert() : string
+    + displayCondition() : void
+}
+
+class RedistributionEngine {
+    - facilities : vector<FacilityStock>
+    + addFacilityStock(stock : FacilityStock) : void
+    + ingestFacilityMessage(msg : FacilityMessage) : void
+    + ingestLocalInventory(facilityName : string, meds : vector<Medicine>) : void
+    + generateRecommendations() : vector<RedistributionRecommendation>
+    + displayRecommendations() : void
+}
+
+class SystemMonitor {
+    - procPathPrefix : string
+    + getCpuInfo(outCpu : CpuInfo&, intervalMs : int) : bool
+    + getMemoryInfo(outMem : MemoryInfo&) : bool
+    + getUptime(sec : double&, formatted : string&) : bool
+    + displaySystemHealth(services : ServiceStatus) : void
+    + displaySystemDashboard(data : DashboardSnapshot) : void
+}
+
+class ThreadedMonitor {
+    - sensor : DeviceSensor&
+    - monitor : StorageMonitor&
+    - sensorThread : thread
+    - alertThread : thread
+    - running : atomic<bool>
+    + start(intervalSec : int) : bool
+    + stop() : void
+    + isRunning() : bool
+    + getState() : MonitoringState
+}
+
+class TcpServer {
+    - host : string
+    - port : int
+    - running : atomic<bool>
+    - receivedMessages : vector<FacilityMessage>
+    + start() : bool
+    + stop() : void
+    + getReceivedMessages() : vector<FacilityMessage>
+}
+
+class TcpClient {
+    + sendPayload(host : string, port : int, payload : string, response : string&) : bool
+}
+
+class NetworkManager {
+    - server : unique_ptr<TcpServer>
+    + startServer() : bool
+    + stopServer() : void
+    + sendFacilityUpdate(fac : string, med : string, batch : string, qty : int, type : string, ack : string&, err : string&) : bool
+    + getStoredFacilityUpdates() : vector<FacilityMessage>
+}
+
+class AlertSystem {
+    + {static} generateAlerts(inv : InventoryManager, thresholds : ExpiryThresholds, refDate : string, mon : StorageMonitor*) : AlertPriorityQueue
+    + {static} displayAlerts(inv : InventoryManager, thresholds : ExpiryThresholds, refDate : string, mon : StorageMonitor*) : void
+}
+
+InventoryManager "1" *-- "many" Medicine
+StorageMonitor "1" o-- "1" DeviceSensor
+TemperatureMonitor "1" o-- "1" DeviceSensor
+ThreadedMonitor "1" o-- "1" DeviceSensor
+ThreadedMonitor "1" o-- "1" StorageMonitor
+NetworkManager "1" *-- "1" TcpServer
+RedistributionEngine ..> Medicine : ingests
+@enduml

@@ -1,0 +1,105 @@
+MediSave-Edge/
+├── Makefile                                # Master build system
+├── README.md                               # Complete project documentation
+├── .gitignore                              # Git ignore rules
+├── LICENSE                                 # MIT License
+│
+├── include/                                # C / C++ Header files
+│   ├── alert_system.h                      # Max-Heap priority alert system
+│   ├── DeviceSensor.h                      # User-space POSIX driver wrapper
+│   ├── expiry_utils.h                      # Date calculation & expiry classification
+│   ├── inventory_manager.h                 # Unordered-map inventory manager
+│   ├── IPCManager.h                        # Pipe, shared memory, and semaphore manager
+│   ├── medicine.h                          # Medicine domain entity declaration
+│   ├── medisave_ioctl.h                    # Shared kernel/user IOCTL definitions
+│   ├── NetworkManager.h                    # High-level network coordinator
+│   ├── ProcessManager.h                    # fork, exec, and waitpid lifecycle manager
+│   ├── RedistributionEngine.h              # Decision-support redistribution engine
+│   ├── SharedData.h                        # POSIX shared memory data layout
+│   ├── SocketCompat.h                      # Cross-platform socket abstraction
+│   ├── StorageMonitor.h                    # High-level storage chamber monitor
+│   ├── SystemMonitor.h                     # Linux /proc virtual filesystem telemetry
+│   ├── TcpClient.h                         # Non-blocking TCP client dispatcher
+│   ├── TcpProtocol.h                       # Wire text protocol & FacilityMessage
+│   ├── TcpServer.h                         # Multi-client TCP server
+│   ├── TemperatureMonitor.h                # Centralized temperature state & history
+│   └── ThreadedMonitor.h                   # In-process std::thread concurrency engine
+│
+├── src/                                    # C++ Implementation files
+│   ├── alert_system.cpp                    # Priority alert queue implementation
+│   ├── DeviceSensor.cpp                    # POSIX system call wrapper implementation
+│   ├── expiry_utils.cpp                    # Calendar difference algorithms
+│   ├── inventory_manager.cpp               # Inventory CRUD & file persistence
+│   ├── IPCManager.cpp                      # Pipe, shm, and sem implementations
+│   ├── main.cpp                            # Interactive 18-option CLI application
+│   ├── medicine.cpp                        # Medicine logic & serialization
+│   ├── medisave_client.cpp                 # Standalone TCP facility update client
+│   ├── medisave_server.cpp                 # Standalone TCP facility coordination hub
+│   ├── monitor_worker.cpp                  # Standalone background monitoring executable
+│   ├── NetworkManager.cpp                  # High-level network coordinator implementation
+│   ├── ProcessManager.cpp                  # fork, exec, and waitpid implementation
+│   ├── RedistributionEngine.cpp            # Deterministic surplus/shortage matching
+│   ├── StorageMonitor.cpp                  # Chamber condition analysis implementation
+│   ├── SystemMonitor.cpp                   # /proc virtual filesystem parsing implementation
+│   ├── TcpClient.cpp                       # Socket connect/send/recv implementation
+│   ├── TcpServer.cpp                       # Socket bind/listen/accept & worker threads
+│   ├── TemperatureMonitor.cpp              # Central temperature telemetry implementation
+│   └── ThreadedMonitor.cpp                 # std::thread, mutex, and condition_variable implementation
+│
+├── driver/                                 # Linux Kernel Module
+│   ├── Makefile                            # Kernel module build script
+│   ├── medisave_driver.c                   # Character device driver source
+│   └── README.md                           # Driver documentation & setup guide
+│
+├── tests/                                  # Automated Test Suites (8 Suites)
+│   ├── device_sensor_test.cpp              # 14 automated driver integration tests
+│   ├── driver_test.cpp                     # Direct driver verification
+│   ├── ipc_test.cpp                        # Pipe, shm, and semaphore unit tests
+│   ├── process_test.cpp                    # fork, exec, and waitpid lifecycle tests
+│   ├── redistribution_test.cpp             # 12 redistribution matching & bounds tests
+│   ├── system_monitor_test.cpp             # Linux /proc filesystem parsing tests
+│   ├── tcp_test.cpp                        # TCP server, client & protocol unit tests
+│   ├── test_inventory.cpp                  # 35 automated inventory tests
+│   └── thread_test.cpp                     # Multithreading, mutex & CV unit tests
+│
+├── data/                                   # Data directory
+│   └── medicines.txt                       # Persistent inventory storage
+│
+└── docs/                                   # Documentation
+    ├── README.md                           # Master documentation index
+    ├── project_structure.txt               # Complete repository directory tree
+    ├── architecture/
+    │   ├── cpp_driver_integration.md       # Driver integration architecture
+    │   ├── device_driver_architecture.md   # Kernel driver architecture
+    │   ├── final_system_architecture.md    # Master system architecture specification
+    │   ├── multithreading_architecture.md  # Concurrency & CV architecture
+    │   ├── process_ipc_architecture.md     # Multi-process & IPC architecture
+    │   ├── redistribution_architecture.md  # Redistribution engine architecture
+    │   ├── system_monitoring_architecture.md# Linux /proc telemetry architecture
+    │   └── tcp_architecture.md             # TCP networking & socket lifecycle
+    ├── demo/
+    │   ├── demo_commands.md                # Copy-paste live demo command sheet
+    │   ├── evidence_checklist.md           # 14 terminal verification checkpoints
+    │   ├── final_submission_checklist.md   # Final submission verification checklist
+    │   └── trainer_demo.md                 # 5-10 minute trainer presentation script
+    ├── progress/
+    │   ├── day1_device_driver.md           # Task 3: Driver milestone report
+    │   ├── day1_inventory.md               # Task 2: Inventory milestone report
+    │   ├── task4_driver_integration.md     # Task 4: Integration report
+    │   ├── task5_process_ipc.md            # Task 5: Process & IPC report
+    │   ├── task6_multithreading_tcp.md     # Task 6: Multithreading & TCP report
+    │   └── task7_final_features.md         # Task 7: Final features report
+    ├── requirements/
+    │   ├── final_requirements.md           # Master functional & non-functional requirements
+    │   └── srs.md                          # Initial SRS baseline
+    ├── testing/
+    │   ├── final_demo_checklist.md         # Trainer demo verification checklist
+    │   ├── project_audit.md                # Comprehensive project audit report
+    │   └── test_results.md                 # Official test results report (all 8 suites)
+    └── uml/
+        ├── 01_use_case.puml                # PlantUML Use Case diagram
+        ├── 02_class_diagram.puml           # PlantUML Class diagram
+        ├── 03_sequence_diagram.puml        # PlantUML Sequence diagram
+        ├── 04_activity_diagram.puml        # PlantUML Activity diagram
+        ├── 05_component_diagram.puml       # PlantUML Component diagram
+        └── README.md                       # UML explanatory guide & code mapping

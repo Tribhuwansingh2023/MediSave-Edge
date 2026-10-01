@@ -1,0 +1,64 @@
+@startuml 05_component_diagram
+skinparam componentStyle uml2
+skinparam monochrome false
+skinparam shadowing false
+
+package "User Space (Ring 3)" {
+    component [CLI Application (main)] as CLI
+    component [Inventory Manager] as InvMgr
+    component [Alert Engine] as AlertEng
+    component [Device Sensor (HAL)] as SensorHAL
+    component [Temperature Monitor] as TempMon
+    component [Process Manager] as ProcMgr
+    component [IPC Manager] as IPCMgr
+    component [Threaded Monitor] as ThreadMon
+    component [Network Manager] as NetMgr
+    component [Redistribution Engine] as RedistEng
+    component [System Monitor] as SysMon
+    component [Monitor Worker Process] as Worker
+}
+
+package "Kernel Space (Ring 0)" {
+    component [Character Device Driver (/dev/medisave)] as Driver
+    component [Linux VFS Layer] as VFS
+    component [/proc Virtual Filesystem] as ProcFS
+}
+
+database "File Storage" {
+    file "medicines.txt" as DataFile
+}
+
+node "Remote Healthcare Facility" {
+    component [TCP Client / Depot Node] as RemoteNode
+}
+
+CLI --> InvMgr
+CLI --> TempMon
+CLI --> ProcMgr
+CLI --> ThreadMon
+CLI --> NetMgr
+CLI --> RedistEng
+CLI --> SysMon
+CLI --> AlertEng
+
+InvMgr --> DataFile : Read / Write
+AlertEng ..> InvMgr : Evaluates
+AlertEng ..> TempMon : Evaluates
+
+TempMon --> SensorHAL
+SensorHAL --> VFS : open / read / write / ioctl
+VFS --> Driver : File Operations
+
+ProcMgr --> Worker : fork() & execl()
+Worker --> IPCMgr : pipe / shm / sem
+IPCMgr --> CLI : Telemetry Stream
+
+ThreadMon --> SensorHAL : Polls /dev/medisave
+ThreadMon --> AlertEng : Pushes Alerts
+
+NetMgr --> RemoteNode : TCP Port 5000
+RedistEng ..> NetMgr : Ingests Messages
+RedistEng ..> InvMgr : Ingests Local Stock
+
+SysMon --> ProcFS : Reads cpuinfo, stat, meminfo, uptime
+@enduml

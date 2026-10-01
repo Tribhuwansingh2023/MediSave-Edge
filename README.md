@@ -11,274 +11,540 @@
 
 ## 1. Project Overview
 
-**MediSave Edge** is an integrated, high-reliability Linux system designed for real-time monitoring of pharmaceutical storage conditions, intelligent inventory balance analysis, automated triage of impending expirations, and decision-support redistribution across distributed healthcare facilities.
+**MediSave Edge** is a Linux-based medicine storage monitoring, inventory alert, and redistribution decision-support prototype implemented using modern C++17 and low-level Linux systems programming concepts.
 
-The project demonstrates complete vertical system integration:
-* **Ring 0 (Kernel Space):** Real Linux Character Device Driver (`/dev/medisave`) with fixed-point arithmetic, mutual exclusion, and an IOCTL control plane.
-* **Ring 3 (User Space):** Modern C++17 architecture employing multi-process isolation (`fork`, `exec`, `waitpid`), streaming and zero-copy IPC (`pipe`, POSIX shared memory, POSIX named semaphores), signal handlers (`sigaction`), multi-threading (`std::thread`, `std::mutex`, `std::condition_variable`), and concurrent TCP networking.
-* **Decision Support:** Automated surplus and shortage classification, deterministic priority-driven redistribution recommendations, and direct virtual filesystem host monitoring (`/proc`).
+The system is designed as an operational prototype and decision-support monitoring tool. It continuously tracks pharmaceutical environmental conditions, identifies impending shelf-life expirations, ranks inventory risks using prioritized alert queues, and calculates deterministic redistribution proposals across distributed healthcare facilities.
 
 > **CLINICAL & REGULATORY NOTICE:**  
-> Redistribution recommendations are advisory software outputs and do not automatically execute physical medicine transfers. All redistribution suggestions are decision-support outputs requiring human verification and clinical oversight.
+> MediSave Edge is an advisory decision-support software prototype. It does **not** make autonomous medical diagnoses, establish treatment regimens, or automatically execute physical drug transfers. All redistribution proposals require human review and authorization by certified medical officers and pharmacists.
 
 ---
 
-## 2. Features
+## 2. Problem Statement
 
-### Core C++
-* **Object-Oriented Design & Modern C++17:** Clean separation of concerns with encapsulated domain classes (`Medicine`, `InventoryManager`, `DeviceSensor`, `TemperatureMonitor`, `RedistributionEngine`, `SystemMonitor`).
-* **STL Containers & Algorithms:** High-performance data structures including `std::unordered_map` for $O(1)$ lookups, `std::vector`, `std::queue`, `std::priority_queue` (Max-Heap), and deterministic sorting algorithms.
-* **Inventory Management:** Full CRUD operations (Add, Remove, Update, Search by ID and Name substring, and Quantity adjustments).
-* **Robust File Persistence:** Flat-file serialization and deserialization at `data/medicines.txt`.
-* **Expiry Analysis & Triage:** Calendar delta calculations tracking days until expiry, identifying expired batches, and ranking items expiring within 30 days.
+Public health facilities and decentralized healthcare depots routinely face critical inventory imbalances:
+* **Thermal Spoilage Risks**: Temperature-sensitive pharmaceuticals (e.g., Insulin, Epinephrine, vaccines) require strict cold-chain maintenance (2.0°C to 8.0°C). Undetected cooling failures cause silent efficacy loss.
+* **Unmonitored Shelf-Life Expiry**: Medicines expire unconsumed due to lack of automated tracking, resulting in financial loss and wasted supplies.
+* **Regional Supply Imbalances**: Acute drug shortages in rural clinics often occur simultaneously with surplus overstock in central district warehouses.
+* **Manual Tracking Overhead**: Manual clipboard checks and fragmented spreadsheets fail to provide real-time alerts or timely re-allocation decisions.
 
-### Linux Systems Programming
-* **Linux Character Device Driver:** Loadable kernel module (`driver/medisave_driver.c`) registering `/dev/medisave` with VFS file operations (`open`, `read`, `write`, `unlocked_ioctl`, `release`).
-* **Kernel/User-Space Communication:** Memory-safe exchanges via `copy_to_user()` / `copy_from_user()` and binary IOCTL control plane (`medisave_ioctl.h`).
-* **Multi-Process Management:** Child process spawning via `fork()`, image replacement via `execl()`, and clean termination / harvest via `waitpid()`.
-* **Inter-Process Communication (IPC):**
-  * Anonymous streaming pipes (`pipe()`) with strict descriptor management.
-  * POSIX Shared Memory (`shm_open()`, `mmap()`) for zero-copy telemetry.
-  * POSIX Named Semaphore (`sem_open()`, `sem_wait()`, `sem_post()`) preventing torn reads.
-* **POSIX Signals:** Async-signal-safe handlers (`sigaction()`) for `SIGINT`, `SIGTERM`, and `SIGUSR1`.
-* **Host System Monitoring (`/proc`):** Direct virtual filesystem parsing of `/proc/cpuinfo`, `/proc/stat`, `/proc/meminfo`, and `/proc/uptime` without external dependencies.
-
-### Concurrency & Multithreading
-* **In-Process Concurrency:** Multi-threaded storage monitoring utilizing `std::thread`.
-* **Mutual Exclusion:** Thread-safe state access protected by `std::mutex` and RAII `std::lock_guard`.
-* **Condition Variables:** Producer-consumer alert triage queue utilizing `std::condition_variable` to eliminate CPU busy-waiting.
-
-### Networking & Distributed Telemetry
-* **TCP Server:** Multi-threaded socket server (`TcpServer`) spawning client handler threads.
-* **TCP Client:** Non-blocking connection dispatcher (`TcpClient`) transmitting structured facility telemetry.
-* **Multi-Facility Protocol:** Pipe-delimited wire messages (`FACILITY|MEDICINE|BATCH|QUANTITY|TYPE\n`) and automated server acknowledgements (`ACK|FACILITY\n`).
-
-### Decision Support & Monitoring
-* **Stock Classification:** Evaluates stock against min/max thresholds (`SHORTAGE`, `NORMAL`, `SURPLUS`).
-* **Redistribution Engine:** Matches surplus source facilities with shortage destination facilities based on medicine identity, compatibility, and availability.
-* **Deterministic Priority Order:** Prioritizes largest shortages first, earlier expiry dates, and deterministic name/ID ties.
-* **Storage Condition Alerts:** Real-time classification (`LOW`, `NORMAL`, `WARNING`, `CRITICAL`) with priority triage queue integration.
-* **Executive Dashboard:** Compact main dashboard presenting live storage, inventory, redistribution, host CPU/RAM, and background service statuses.
+MediSave Edge solves these challenges through automated environmental sensing, proactive Max-Heap triage, concurrent multi-facility networking, and deterministic redistribution calculations.
 
 ---
 
-## 3. Project Structure
+## 3. Objectives
+
+The project accomplishes the following technical and operational objectives:
+1. **Core Inventory Management**: Deliver an in-memory CRUD engine backed by persistent disk storage.
+2. **Automated Expiry Triage**: Calculate calendar offsets to quarantine expired batches and flag items expiring within 7 and 30 days.
+3. **Storage Temperature Monitoring**: Maintain continuous chamber telemetry with configurable safety thresholds.
+4. **Linux Character Device Driver Integration**: Interface user-space applications directly with a custom loadable kernel module (`/dev/medisave`) via VFS and IOCTL.
+5. **Process Lifecycle & IPC**: Implement multi-process monitoring using `fork()`, `exec()`, `waitpid()`, anonymous pipes, POSIX shared memory, and POSIX named semaphores.
+6. **Concurrent In-Process Multithreading**: Decouple sensor acquisition and alert processing using `std::thread`, `std::mutex`, and `std::condition_variable`.
+7. **Distributed TCP Communication**: Operate multi-client TCP server and client socket pipelines to exchange facility inventory telemetry over port 5000.
+8. **Redistribution Decision Support**: Deterministically match regional surpluses with shortages under strict transfer constraints.
+9. **Linux Host Telemetry**: Parse the Linux `/proc` virtual filesystem (`/proc/cpuinfo`, `/proc/stat`, `/proc/meminfo`, `/proc/uptime`) with zero third-party dependencies.
+10. **Integrated Executive Dashboard**: Consolidate live chamber telemetry, inventory levels, redistribution proposals, and host health into a single-screen view.
+
+---
+
+## 4. Key Features
+
+### Inventory
+* **CRUD Engine**: Add, remove, update, and search medicines by ID and name substring.
+* **Stock Monitoring**: Dynamic threshold validation detecting depleted stock ($qty \le minStock$).
+* **File Persistence**: Serialization and deserialization from `data/medicines.txt`.
+
+### Expiry
+* **Expired Drug Detection**: Negative day calculation isolating expired batches for immediate quarantine.
+* **Expiring-Soon Detection**: Tiered warnings for batches expiring within 7 days (critical) and 30 days (warning).
+* **Priority Alerts**: STL Max-Heap (`std::priority_queue`) prioritizing urgent risks at the top.
+
+### Linux Device Driver
+* **Character Device**: Dynamically registered kernel module exposing `/dev/medisave`.
+* **VFS Operations**: Standard `open()`, `read()`, `write()`, and `release()` system calls.
+* **IOCTL Control Plane**: Fast binary data exchange via `MEDISAVE_IOC_SET_TEMP`, `MEDISAVE_IOC_GET_TEMP`, `MEDISAVE_IOC_GET_STATUS`, and `MEDISAVE_IOC_GET_DATA`.
+* **Hardware Simulation**: Integer fixed-point milli-Celsius representation prohibiting kernel floating-point operations.
+
+### Linux System Programming
+* **Processes**: Process duplication via `fork()`, executable replacement via `execl()`, and non-blocking zombie prevention via `waitpid()`.
+* **Anonymous Pipes**: Unidirectional streaming IPC transferring live telemetry from worker to parent.
+* **POSIX Shared Memory**: Zero-copy segment (`/medisave_shm_v1`) mapped via `shm_open()` and `mmap()`.
+* **POSIX Named Semaphore**: Concurrency lock (`/medisave_sem_v1`) preventing torn reads during shared memory access.
+* **POSIX Signals**: Async-signal-safe handlers (`sigaction()`) intercepting `SIGINT`, `SIGTERM`, and `SIGUSR1`.
+
+### Multithreading
+* **Sensor Polling Thread**: Background thread querying `/dev/medisave` at periodic intervals.
+* **Alert Consumer Thread**: Worker thread waiting on a condition variable to triage excursions without CPU busy-waiting.
+* **Synchronization**: RAII `std::lock_guard<std::mutex>` protecting shared telemetry.
+* **Thread Teardown**: Clean atomic coordination and `join()` execution.
+
+### Networking
+* **TCP Server**: Multi-client socket server spawning dedicated threads per facility connection.
+* **TCP Client**: Socket connection dispatcher transmitting facility status payloads.
+* **Protocol & ACK**: Pipe-delimited wire format (`FACILITY|MEDICINE|BATCH|QUANTITY|TYPE\n`) and automated `ACK|FACILITY\n`.
+
+### Redistribution
+* **Surplus & Shortage Analysis**: Classification of facility stocks relative to minimum requirements.
+* **Deterministic Matching**: Prioritization of highest deficits, earliest expiries, and deterministic name/ID ties.
+* **Transfer Constraints**: Transfers strictly bounded by $\min(\text{Surplus}, \text{Shortage})$; never negative or zero.
+* **Advisory Disclaimer**: Software proposals that do not execute automatic physical movements.
+
+### System Monitoring
+* **/proc/cpuinfo**: Processor model identification and logical core topology.
+* **/proc/stat**: Multi-sample delta calculation for accurate CPU load percentage.
+* **/proc/meminfo**: Physical memory metrics (`MemTotal`, `MemAvailable`, memory used percentage).
+* **/proc/uptime**: Conversion of kernel uptime seconds into human-readable duration strings.
+
+---
+
+## 5. Technology Stack
+
+* **Programming Languages**: C (Linux Kernel Module, C99) / C++ (User-space Engine, C++17).
+* **Operating System**: Linux (Ubuntu 22.04 LTS / Debian 12 / Linux Kernel 5.x–6.x).
+* **Build System**: GNU Make, GCC / G++ toolchain.
+* **Linux Kernel Subsystems**: Loadable Kernel Module (LKM), Character Device Subsystem, VFS, IOCTL, Kernel Mutexes.
+* **System Programming APIs**: POSIX System Calls (`fork`, `exec`, `waitpid`, `pipe`, `shm_open`, `mmap`, `sem_open`, `sigaction`).
+* **Networking**: POSIX Berkeley Sockets (TCP/IP, IPv4, stream sockets).
+* **Concurrency**: `std::thread`, `std::mutex`, `std::condition_variable`, `std::atomic`.
+* **STL Data Structures**: `std::unordered_map` (inventory lookups), `std::priority_queue` (alert triage), `std::vector`, `std::queue`.
+
+---
+
+## 6. System Architecture
+
+```text
+                         MEDISAVE EDGE
+                              |
+       -------------------------------------------------
+       |                    |                         |
+       v                    v                         v
+   INVENTORY           STORAGE MONITORING       FACILITY NETWORK
+       |                    |                         |
+       |               DeviceSensor                  |
+       |                    |                        TCP
+       |               /dev/medisave                  |
+       |                    |                         |
+       ---------------------|--------------------------
+                            v
+                      ALERT ENGINE
+                            |
+              ---------------------------
+              |                         |
+              v                         v
+        EXPIRY ALERTS             STOCK ANALYSIS
+                                        |
+                                        v
+                              REDISTRIBUTION ENGINE
+                                        |
+                                        v
+                                SYSTEM DASHBOARD
+                                        |
+                         ----------------------------
+                         |            |             |
+                        CPU         MEMORY        UPTIME
+                       /proc        /proc         /proc
+```
+
+---
+
+## 7. User Space and Kernel Space
+
+```text
+================================================================================
+                               USER SPACE (Ring 3)
+================================================================================
+  C++ Application (bin/medisave)
+  - DeviceSensor (Hardware Abstraction Layer)
+  - TemperatureMonitor & StorageMonitor
+  - InventoryManager & AlertSystem
+  - RedistributionEngine & NetworkManager
+  - SystemMonitor
+
+          |
+          | open(), read(), write(), ioctl() system calls
+          v
+================================================================================
+                               KERNEL SPACE (Ring 0)
+================================================================================
+  Linux VFS (Virtual File System)
+       |
+       v
+  Character Device Driver (/dev/medisave)
+  - driver/medisave_driver.c
+  - copy_to_user() & copy_from_user()
+  - DEFINE_MUTEX(medisave_mutex)
+  - Simulated Hardware State: current_temp_milli (e.g. 6500 = 6.50 °C)
+================================================================================
+```
+
+---
+
+## 8. Device Driver Architecture
+
+```text
+C++ Application (DeviceSensor)
+      |
+      v
+open() / read() / write() / ioctl()
+      |
+      v
+/dev/medisave (Major 240 / alloc_chrdev_region)
+      |
+      v
+Character Device Driver (medisave_driver.c)
+      |
+      +---> copy_to_user() / copy_from_user()
+      +---> Fixed-point integer temperature state (milli-Celsius)
+      +---> Mutex concurrency protection (medisave_mutex)
+      +---> IOCTL Control Plane (medisave_ioctl.h)
+      |
+      v
+Simulated Environmental Sensor Telemetry
+```
+
+---
+
+## 9. Process Architecture
+
+```text
+Main Application Process (bin/medisave)
+     |
+     +---- fork()
+     |
+     +---- Child Process
+                |
+                +---- exec() -> execl("bin/monitor_worker", ...)
+                      |
+                      v
+                Dedicated Monitor Worker (bin/monitor_worker)
+                      |
+                      +---> Continuous sampling & IPC transmission
+                      |
+                      v
+     Main Process calls waitpid(pid, &status, WNOHANG) -> Zero Zombie Processes
+```
+
+---
+
+## 10. IPC Architecture
+
+### Pipe IPC
+```text
+Monitor Worker Process
+   |
+   | write(pipefd[1], buffer, len)
+   v
+ Anonymous Pipe Buffer (Kernel Memory)
+   |
+   | read(pipefd[0], buffer, len)
+   v
+Main Application Process
+```
+
+### Shared Memory & Semaphore Synchronization
+```text
+Producer Process (monitor_worker)             Consumer Process (main)
+         |                                              |
+         | sem_wait(/medisave_sem_v1)                   | sem_wait(/medisave_sem_v1)
+         v                                              v
++---------------------------------------------------------------+
+|         POSIX Shared Memory Segment (/medisave_shm_v1)        |
+|                  struct SharedMonitorData                     |
++---------------------------------------------------------------+
+         |                                              |
+         | sem_post(/medisave_sem_v1)                   | sem_post(/medisave_sem_v1)
+         v                                              v
+```
+
+---
+
+## 11. Multithreading Architecture
+
+```text
+Main Application Process
+      |
+      +---- Sensor Polling Thread (ThreadedMonitor::sensorWorker)
+      |     - Samples /dev/medisave every 5 seconds
+      |     - Updates shared state protected by std::mutex
+      |     - Signals alertCv upon storage excursion
+      |
+      +---- Alert Consumer Thread (ThreadedMonitor::alertWorker)
+      |     - Waits on std::condition_variable (zero CPU busy-waiting)
+      |     - Consumes alerts from std::queue<StorageAlert>
+      |
+      +---- Network Worker Threads (TcpServer::handleClient)
+            - Dedicated thread per accepted facility TCP connection
+```
+
+---
+
+## 12. TCP Architecture
+
+```text
+Facility Client A (bin/medisave_client)        Facility Client B (bin/medisave_client)
+(e.g., Regional Depot)                         (e.g., District Clinic)
+       |                                              |
+       | connect(127.0.0.1:5000)                      | connect(127.0.0.1:5000)
+       v                                              v
++---------------------------------------------------------------+
+|               MediSave TCP Server (bin/medisave_server)       |
+|                 socket() -> bind() -> listen() -> accept()    |
++---------------------------------------------------------------+
+       |                                              |
+       v                                              v
+ [Worker Thread A]                              [Worker Thread B]
+ recv() -> parse message                        recv() -> parse message
+ send(ACK|Facility-A)                           send(ACK|Facility-B)
+ close()                                        close()
+```
+
+---
+
+## 13. Redistribution Architecture
+
+```text
+Distributed Facility Telemetry (TCP Buffer & Local Stock)
+       |
+       v
+Stock Classification (SHORTAGE, NORMAL, SURPLUS)
+       |
+       v
+Surplus / Shortage Delta Analysis
+- Surplus  = Quantity - MinimumRequired
+- Shortage = MinimumRequired - Quantity
+       |
+       v
+Deterministic Matching Engine
+- Match same medicine ID / name
+- Verify compatible batches
+- Prioritize larger shortage deficit first
+- Prioritize earlier expiry date first
+       |
+       v
+Transfer Quantity Calculation
+- Suggested Transfer = min(Surplus_source, Shortage_dest)
+       |
+       v
+Advisory Redistribution Recommendation
+(Facility A ---> Facility B)
+```
+
+> **IMPORTANT:**  
+> The system generates advisory recommendations only. It does **not** automatically modify local stock, dispatch transport, or execute physical medicine transfers.
+
+---
+
+## 14. Linux System Monitoring (`/proc`)
+
+MediSave Edge directly parses the virtual filesystem without third-party monitoring libraries:
+* **/proc/cpuinfo**: Extracts processor model string (`model name` / `Hardware`) and counts logical processor instances.
+* **/proc/stat**: Samples cumulative CPU counters across a 50–100ms interval to compute delta utilization percentage:
+  $$\text{CPU Usage \%} = \frac{\Delta\text{Total} - \Delta\text{Idle}}{\Delta\text{Total}} \times 100$$
+* **/proc/meminfo**: Reads `MemTotal` and `MemAvailable` to compute active memory consumption in gigabytes and percentage.
+* **/proc/uptime**: Reads elapsed kernel uptime seconds and formats into duration strings (e.g., `"2 days, 1 hours 15 minutes"`).
+
+---
+
+## 15. Project Structure
 
 ```text
 MediSave-Edge/
-├── Makefile                        # Master build system
-├── README.md                       # Comprehensive documentation
-├── .gitignore                      # Git ignore rules
-├── LICENSE                         # MIT License
+├── Makefile                                # Master build system
+├── README.md                               # Complete project documentation
+├── .gitignore                              # Git ignore rules
+├── LICENSE                                 # MIT License
 │
-├── include/                        # C / C++ Header files
-│   ├── medicine.h                  # Medicine entity declaration
-│   ├── inventory_manager.h         # Inventory manager declaration
-│   ├── expiry_utils.h              # Date calculation & expiry utilities
-│   ├── alert_system.h              # Priority queue alert system
-│   ├── DeviceSensor.h              # Low-level POSIX driver wrapper
-│   ├── StorageMonitor.h            # High-level storage monitor
-│   ├── TemperatureMonitor.h        # Centralized storage monitoring & history
-│   ├── RedistributionEngine.h      # Decision-support redistribution engine
-│   ├── SystemMonitor.h             # Linux /proc host telemetry & dashboard
-│   ├── medisave_ioctl.h            # Shared kernel/user IOCTL definitions
-│   ├── SharedData.h                # POSIX shared memory layout
-│   ├── IPCManager.h                # Pipe, shared memory, and semaphore manager
-│   ├── ProcessManager.h            # Process lifecycle (fork/exec/waitpid) manager
-│   ├── ThreadedMonitor.h           # In-process C++17 multithreading engine
-│   ├── SocketCompat.h              # Cross-platform socket abstraction
-│   ├── TcpProtocol.h               # Wire text protocol & FacilityMessage
-│   ├── TcpServer.h                 # Multi-client TCP server
-│   ├── TcpClient.h                 # TCP client implementation
-│   └── NetworkManager.h            # High-level network coordinator
+├── include/                                # C / C++ Header files
+│   ├── alert_system.h                      # Max-Heap priority alert system
+│   ├── DeviceSensor.h                      # User-space POSIX driver wrapper
+│   ├── expiry_utils.h                      # Date calculation & expiry classification
+│   ├── inventory_manager.h                 # Unordered-map inventory manager
+│   ├── IPCManager.h                        # Pipe, shared memory, and semaphore manager
+│   ├── medicine.h                          # Medicine domain entity declaration
+│   ├── medisave_ioctl.h                    # Shared kernel/user IOCTL definitions
+│   ├── NetworkManager.h                    # High-level network coordinator
+│   ├── ProcessManager.h                    # fork, exec, and waitpid lifecycle manager
+│   ├── RedistributionEngine.h              # Decision-support redistribution engine
+│   ├── SharedData.h                        # POSIX shared memory data layout
+│   ├── SocketCompat.h                      # Cross-platform socket abstraction
+│   ├── StorageMonitor.h                    # High-level storage chamber monitor
+│   ├── SystemMonitor.h                     # Linux /proc virtual filesystem telemetry
+│   ├── TcpClient.h                         # Non-blocking TCP client dispatcher
+│   ├── TcpProtocol.h                       # Wire text protocol & FacilityMessage
+│   ├── TcpServer.h                         # Multi-client TCP server
+│   ├── TemperatureMonitor.h                # Centralized temperature state & history
+│   └── ThreadedMonitor.h                   # In-process std::thread concurrency engine
 │
-├── src/                            # C++ Implementation files
-│   ├── medicine.cpp                # Medicine logic & serialization
-│   ├── inventory_manager.cpp       # Inventory CRUD & persistence
-│   ├── expiry_utils.cpp            # Calendar difference algorithms
-│   ├── alert_system.cpp            # Heap ordering & alert rendering
-│   ├── DeviceSensor.cpp            # POSIX driver system call wrapper
-│   ├── StorageMonitor.cpp          # Storage condition analysis
-│   ├── TemperatureMonitor.cpp      # Central temperature telemetry & alerts
-│   ├── RedistributionEngine.cpp    # Deterministic surplus/shortage matching
-│   ├── SystemMonitor.cpp           # Direct /proc VFS metrics & dashboard
-│   ├── IPCManager.cpp              # Anonymous pipe, shm, and sem implementations
-│   ├── ProcessManager.cpp          # fork, exec, waitpid, and kill implementation
-│   ├── ThreadedMonitor.cpp         # std::thread, mutex, and condition_variable implementation
-│   ├── TcpServer.cpp               # Socket bind/listen/accept & client worker threads
-│   ├── TcpClient.cpp               # Socket connect/send/recv implementation
-│   ├── NetworkManager.cpp          # High-level network lifecycle coordinator
-│   ├── monitor_worker.cpp          # Standalone background monitoring executable
-│   ├── medisave_server.cpp         # Standalone TCP facility coordination hub
-│   ├── medisave_client.cpp         # Standalone TCP facility update client
-│   └── main.cpp                    # Final 18-option CLI application
+├── src/                                    # C++ Implementation files
+│   ├── alert_system.cpp                    # Priority alert queue implementation
+│   ├── DeviceSensor.cpp                    # POSIX system call wrapper implementation
+│   ├── expiry_utils.cpp                    # Calendar difference algorithms
+│   ├── inventory_manager.cpp               # Inventory CRUD & file persistence
+│   ├── IPCManager.cpp                      # Pipe, shm, and sem implementations
+│   ├── main.cpp                            # Interactive 18-option CLI application
+│   ├── medicine.cpp                        # Medicine logic & serialization
+│   ├── medisave_client.cpp                 # Standalone TCP facility update client
+│   ├── medisave_server.cpp                 # Standalone TCP facility coordination hub
+│   ├── monitor_worker.cpp                  # Standalone background monitoring executable
+│   ├── NetworkManager.cpp                  # High-level network coordinator implementation
+│   ├── ProcessManager.cpp                  # fork, exec, and waitpid implementation
+│   ├── RedistributionEngine.cpp            # Deterministic surplus/shortage matching
+│   ├── StorageMonitor.cpp                  # Chamber condition analysis implementation
+│   ├── SystemMonitor.cpp                   # /proc virtual filesystem parsing implementation
+│   ├── TcpClient.cpp                       # Socket connect/send/recv implementation
+│   ├── TcpServer.cpp                       # Socket bind/listen/accept & worker threads
+│   ├── TemperatureMonitor.cpp              # Central temperature telemetry implementation
+│   └── ThreadedMonitor.cpp                 # std::thread, mutex, and condition_variable implementation
 │
-├── driver/                         # Linux Kernel Module
-│   ├── medisave_driver.c           # Character device driver source
-│   ├── Makefile                    # Kernel module build script
-│   └── README.md                   # Driver documentation & guide
+├── driver/                                 # Linux Kernel Module
+│   ├── Makefile                            # Kernel module build script
+│   ├── medisave_driver.c                   # Character device driver source
+│   └── README.md                           # Driver documentation & setup guide
 │
-├── tests/                          # Automated Test Suites (8 Suites)
-│   ├── test_inventory.cpp          # 35 automated inventory tests
-│   ├── device_sensor_test.cpp      # 14 automated driver integration tests
-│   ├── driver_test.cpp             # Direct driver verification
-│   ├── ipc_test.cpp                # Pipe, shm, and semaphore unit tests
-│   ├── process_test.cpp            # fork, exec, and waitpid lifecycle tests
-│   ├── thread_test.cpp             # Multithreading, mutex & CV unit tests
-│   ├── tcp_test.cpp                # TCP server, client & protocol unit tests
-│   ├── redistribution_test.cpp     # Redistribution matching & bounds tests
-│   └── system_monitor_test.cpp     # Linux /proc filesystem parsing tests
+├── tests/                                  # Automated Test Suites (8 Suites)
+│   ├── device_sensor_test.cpp              # 14 automated driver integration tests
+│   ├── driver_test.cpp                     # Direct driver verification
+│   ├── ipc_test.cpp                        # Pipe, shm, and semaphore unit tests
+│   ├── process_test.cpp                    # fork, exec, and waitpid lifecycle tests
+│   ├── redistribution_test.cpp             # 12 redistribution matching & bounds tests
+│   ├── system_monitor_test.cpp             # Linux /proc filesystem parsing tests
+│   ├── tcp_test.cpp                        # TCP server, client & protocol unit tests
+│   ├── test_inventory.cpp                  # 35 automated inventory tests
+│   └── thread_test.cpp                     # Multithreading, mutex & CV unit tests
 │
-├── data/                           # Data directory
-│   └── medicines.txt               # Persistent inventory storage
+├── data/                                   # Data directory
+│   └── medicines.txt                       # Persistent inventory storage
 │
-└── docs/                           # Documentation
-    ├── architecture/
-    │   ├── device_driver_architecture.md   # Kernel driver architecture
-    │   ├── cpp_driver_integration.md       # Driver integration architecture
-    │   ├── process_ipc_architecture.md     # Multi-process & IPC architecture
-    │   ├── multithreading_architecture.md  # Concurrency & CV architecture
-    │   ├── tcp_architecture.md             # TCP networking & socket lifecycle
-    │   ├── redistribution_architecture.md  # Redistribution engine architecture
-    │   └── system_monitoring_architecture.md# Linux /proc telemetry architecture
-    ├── progress/
-    │   ├── day1_inventory.md               # Day 1 Inventory milestone report
-    │   ├── day1_device_driver.md           # Day 1 Driver demo script
-    │   ├── task4_driver_integration.md     # Task 4 integration report
-    │   ├── task5_process_ipc.md            # Task 5 process & IPC report
-    │   ├── task6_multithreading_tcp.md     # Task 6 multithreading & TCP report
-    │   └── task7_final_features.md         # Task 7 final feature report
-    └── testing/
-        └── final_demo_checklist.md         # Trainer demo verification checklist
+└── docs/                                   # Documentation
+    ├── README.md                           # Master documentation index
+    ├── project_structure.txt               # Complete repository directory tree
+    ├── architecture/                       # Subsystem architecture specifications
+    ├── demo/                               # Trainer demo script & command sheets
+    ├── progress/                           # Milestone development reports
+    ├── requirements/                       # Requirements specifications
+    ├── testing/                            # Audit and official test result reports
+    └── uml/                                # PlantUML diagrams & documentation
 ```
 
 ---
 
-## 4. Build Instructions
+## 16. Requirements
 
-### Prerequisites (Ubuntu/Debian):
+### Operating System:
+* Linux (Ubuntu 20.04+, Debian 11+, or compatible Linux distribution).
+* x86_64 architecture.
+
+### Build Toolchain:
+* GCC / G++ (supporting C++17, version 9.0 or later).
+* GNU Make (version 4.0 or later).
+* POSIX Real-time and Threads libraries (`-pthread`, `-lrt`).
+
+### Linux Kernel Headers:
+* Matching running kernel (`linux-headers-$(uname -r)`).
+
+---
+
+## 17. Installation
+
 ```bash
+# 1. Clone repository
+git clone https://github.com/Tribhuwansingh2023/MediSave-Edge.git
+cd MediSave-Edge
+
+# 2. Install prerequisites (Ubuntu/Debian)
 sudo apt update
 sudo apt install -y build-essential linux-headers-$(uname -r) make gcc g++
-```
 
-### Compiling All Targets:
-```bash
+# 3. Compile all applications, workers, and test runners
 make all
-# Compiles main app (bin/medisave), worker, server, client, and all 8 test binaries
-```
 
-### Compiling Linux Character Device Driver:
-```bash
+# 4. Compile Linux Character Device Driver
 make driver
-# Compiles driver/medisave_driver.ko
 ```
 
 ---
 
-## 5. Automated Unit & Integration Testing
+## 18. Running the Project
 
-Run all 8 automated test suites with a single command:
+### 1. Load the Kernel Module:
 ```bash
-make test
+sudo insmod driver/medisave_driver.ko
+sudo chmod 666 /dev/medisave
+ls -l /dev/medisave
+dmesg | tail -n 5
 ```
 
-Verification includes:
-1. **Inventory Unit Tests (`bin/test_inventory`)**: 35 tests verifying CRUD, search, expiry calculation, priority queues, and file persistence.
-2. **Device Sensor Integration Tests (`bin/device_sensor_test`)**: 14 tests verifying IOCTL operations, VFS read/write, and parameter boundary validation.
-3. **IPC Tests (`bin/ipc_test`)**: Tests anonymous pipes, POSIX shared memory, and semaphore synchronization.
-4. **Process Lifecycle Tests (`bin/process_test`)**: Tests `fork()`, `exec()`, and `waitpid()` harvesting.
-5. **Multithreading Tests (`bin/thread_test`)**: Tests `std::thread`, mutex synchronization, and condition variable triage.
-6. **TCP Socket Tests (`bin/tcp_test`)**: Tests server startup, client connection, message exchange, and clean shutdown.
-7. **Redistribution Engine Tests (`bin/redistribution_test`)**: Tests surplus/shortage detection, matching, transfer limits, and deterministic ordering.
-8. **Linux /proc System Monitor Tests (`bin/system_monitor_test`)**: Tests `/proc/cpuinfo`, `/proc/stat`, `/proc/meminfo`, and `/proc/uptime` direct parsing.
-
----
-
-## 6. End-to-End Trainer Demonstration Workflow
-
-To execute the complete 17-step end-to-end demonstration:
-
+### 2. Launch Main Interactive CLI:
 ```bash
-# STEP 1: Build and load Linux character device driver
-cd driver && make && sudo insmod medisave_driver.ko && sudo chmod 666 /dev/medisave && cd ..
-
-# STEP 2: Launch main MediSave Edge CLI
 ./bin/medisave
+```
 
-# STEP 3: Display Inventory (Option 5)
-# Displays all active medicine records
+### 3. Launch Standalone TCP Server & Client (Optional Demo):
+```bash
+# Terminal 1: Launch Facility Server
+./bin/medisave_server
 
-# STEP 4: Show Expiry Alerts (Option 8)
-# Displays priority max-heap alert queue with expired and critical items
+# Terminal 2: Report Surplus from Facility-A
+./bin/medisave_client Facility-A Paracetamol P2026A 150 SURPLUS
 
-# STEP 5: Read Storage Temperature (Option 9)
-# Reads current temperature (default 6.50 °C - NORMAL)
+# Terminal 3: Report Shortage from Facility-B
+./bin/medisave_client Facility-B Paracetamol P2026A 20 SHORTAGE
+```
 
-# STEP 6: Set Simulated Temperature to 11.50 °C (Option 10)
-# Writes 11.50 °C into /dev/medisave via IOCTL
-
-# STEP 7: Show CRITICAL Storage Alert (Option 8 / 11)
-# Storage chamber evaluates status as CRITICAL and issues urgent warning
-
-# STEP 8: Start Background Monitoring (Option 12)
-# Spawns sensor and alert worker threads and starts in-process TCP server
-
-# STEP 9: Transmit Facility Updates (Option 14)
-# Send Facility-A surplus: Facility-A | Paracetamol | P2026A | 150 | SURPLUS
-# Send Facility-B shortage: Facility-B | Paracetamol | P2026A | 20 | SHORTAGE
-
-# STEP 10: Run Redistribution Analysis (Option 15)
-# Generates deterministic advisory proposal:
-# Suggested Transfer: 30 units (Facility-A -> Facility-B)
-
-# STEP 11: Show System Health (Option 16)
-# Displays live CPU model, logical cores, memory utilization, and uptime
-
-# STEP 12: Show Executive Dashboard (Option 17)
-# Single-screen summary of Storage, Inventory, Redistribution, and Services
-
-# STEP 13: Stop Background Monitoring (Option 13)
-# Terminates monitoring threads cleanly
-
-# STEP 14: Exit (Option 18)
-# Gracefully saves inventory and shuts down all resources
-
-# STEP 15: Unload driver
+### 4. Unload Kernel Module:
+```bash
 sudo rmmod medisave_driver
 ```
 
 ---
 
-## 7. Interactive CLI Menu
+## 19. Testing
 
-```text
-========================================
-           MEDISAVE EDGE
-========================================
- 1. Add Medicine
- 2. Remove Medicine
- 3. Update Medicine
- 4. Search Medicine
- 5. Display Inventory
- 6. Update Stock
- 7. Check Expiry
- 8. Show Alerts
- 9. Read Storage Temperature
-10. Set Simulated Temperature
-11. Show Storage Condition
-12. Start Monitoring
-13. Stop Monitoring
-14. Send Facility Update
-15. Analyze Redistribution
-16. Show System Health
-17. Show System Dashboard
-18. Exit
-========================================
+Execute all 8 automated unit and integration test suites:
+```bash
+make test
 ```
+
+Official test report: [`docs/testing/test_results.md`](docs/testing/test_results.md)  
+Comprehensive audit: [`docs/testing/project_audit.md`](docs/testing/project_audit.md)
+
+| Test Suite | Focus Area | Status |
+| :--- | :--- | :---: |
+| `bin/test_inventory` | CRUD operations, calendar expiry, Max-Heap triage, persistence | **35 / 35 PASS** |
+| `bin/device_sensor_test` | POSIX system call wrapper, IOCTL control plane, parameter validation | **14 / 14 PASS** |
+| `bin/driver_test` | Direct kernel module open, read, write, ioctl, and close verification | **PASS** |
+| `bin/ipc_test` | Anonymous pipe streaming, POSIX shared memory, POSIX semaphores | **PASS** |
+| `bin/process_test` | Multi-process fork, exec, waitpid harvesting, zombie prevention | **PASS** |
+| `bin/thread_test` | `std::thread`, `std::mutex`, `std::condition_variable` alert triage | **PASS** |
+| `bin/tcp_test` | TCP socket server, client connection, payload exchange, ACK parsing | **PASS** |
+| `bin/redistribution_test` | Surplus/shortage matching, transfer limits, deterministic priority | **PASS** |
+| `bin/system_monitor_test` | Virtual filesystem `/proc` direct parsing with fallback resilience | **PASS** |
 
 ---
 
-## 8. License
+## 20. Limitations
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+1. **Simulated Hardware Sensor**: Environmental telemetry is generated within Linux kernel space memory using an internal state variable. Deployment on physical medical refrigerators requires interfacing with real 1-Wire (DS18B20) or I2C sensors.
+2. **Advisory Decision Support**: Redistribution proposals are intentionally non-autonomous to respect healthcare regulatory guidelines requiring licensed pharmacist sign-off.
+3. **Localhost Socket Networking**: Distributed facility simulation defaults to `127.0.0.1`. Cross-datacenter production deployments require TLS encryption and WAN routing.
+4. **Demonstration Dataset**: Medicine catalog and facility inventories use fictional demonstration datasets.
+
+---
+
+## 21. Future Scope
+
+* **Physical IoT Sensor Drivers**: Integration with real Dallas 1-Wire (`w1_therm`) or I2C thermal sensors via Linux device tree overlays.
+* **Encrypted TLS Communication**: Upgrade plaintext TCP sockets to OpenSSL / TLS for HIPAA-compliant encrypted transport.
+* **Hardware Push Notifications**: GSM/SMS and webhook alerts dispatched directly to on-call biomedical technicians during critical excursions.
+* **Embedded Linux Deployment**: Porting the kernel driver and core engine to lightweight Yocto / Buildroot images on Raspberry Pi or BeagleBone hardware.
+* **Cold-Chain GPS Tracking**: Integration with cellular GPS modules for in-transit refrigerated transport tracking.
+
+---
+
+## 22. Author
+
+* **Student Name:** Tribhuwan Singh
+* **Email:** webosingh93@gmail.com
+* **GitHub Repository:** [Tribhuwansingh2023/MediSave-Edge](https://github.com/Tribhuwansingh2023/MediSave-Edge)
+* **License:** MIT License
