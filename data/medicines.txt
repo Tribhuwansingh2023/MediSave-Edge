@@ -1,0 +1,11 @@
+# ==============================================================================
+# MediSave Edge Inventory Storage File
+# Schema: ID|Name|Batch|Quantity|Expiry|MinStock|MaxStock|MinTemp|MaxTemp
+# ==============================================================================
+MED-007|Azithromycin 500mg|AZI-2027D|220|2028-01-15|30|400|15.0|25.0
+MED-006|Epinephrine Auto-Inj|EPI-2026Z|8|2026-10-06|15|100|2.0|8.0
+MED-005|Ibuprofen 400mg|IBU-2026M|350|2027-11-30|50|600|15.0|25.0
+MED-004|Ceftriaxone 1g Inj|CEF-2026K|60|2026-10-24|25|250|15.0|25.0
+MED-003|Insulin Regular 100IU|INS-2025X|45|2026-09-22|20|200|2.0|8.0
+MED-002|Amoxicillin 250mg|A2026B|12|2027-04-15|40|300|15.0|25.0
+MED-001|Paracetamol 500mg|P2026A|180|2026-10-04|50|500|15.0|25.0
