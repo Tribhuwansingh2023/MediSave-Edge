@@ -42,6 +42,23 @@ public:
 
     // Raw read helper for formatted streams
     bool readRaw(std::string& rawOutput);
+
+    // Convenience aliases for driver test compatibility
+    inline bool readSensor(double& temp, std::string& status) {
+        return readTemperature(temp) && getStatus(status);
+    }
+    inline bool writeTemperature(double temp) {
+        return setTemperature(temp);
+    }
+    inline bool getTemperatureIoctl(double& temp) {
+        return readTemperature(temp);
+    }
+    inline bool getStatusIoctl(std::string& status) {
+        return getStatus(status);
+    }
+    inline bool setTemperatureIoctl(double temp) {
+        return setTemperature(temp);
+    }
 };
 
 #endif // DEVICE_SENSOR_H

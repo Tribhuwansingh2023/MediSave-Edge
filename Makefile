@@ -36,12 +36,13 @@ APP_BIN          := $(BIN_DIR)/medisave
 WORKER_BIN       := $(BIN_DIR)/monitor_worker
 TEST_BIN         := $(BIN_DIR)/test_inventory
 SENSOR_TEST_BIN  := $(BIN_DIR)/device_sensor_test
+DRIVER_TEST_BIN  := $(BIN_DIR)/driver_test
 IPC_TEST_BIN     := $(BIN_DIR)/ipc_test
 PROCESS_TEST_BIN := $(BIN_DIR)/process_test
 
-.PHONY: all run test clean distclean help dirs driver driver-clean ipc-test process-test
+.PHONY: all run test clean distclean help dirs driver driver-clean ipc-test process-test driver-test
 
-all: dirs $(APP_BIN) $(WORKER_BIN) $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) $(TEST_BIN) $(SENSOR_TEST_BIN)
+all: dirs $(APP_BIN) $(WORKER_BIN) $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) $(TEST_BIN) $(SENSOR_TEST_BIN) $(DRIVER_TEST_BIN)
 
 dirs:
 	@mkdir -p $(BUILD_DIR) $(BIN_DIR)
@@ -79,11 +80,19 @@ $(PROCESS_TEST_BIN): $(TESTS_DIR)/process_test.cpp | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
 	@echo [Build] Process test successfully compiled: $(PROCESS_TEST_BIN)
 
+# Task 3/4 Direct Driver Test Program
+$(DRIVER_TEST_BIN): $(BUILD_DIR)/DeviceSensor.o $(TESTS_DIR)/driver_test.cpp | dirs
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@echo [Build] Driver test successfully compiled: $(DRIVER_TEST_BIN)
+
 ipc-test: $(IPC_TEST_BIN)
 	@./$(IPC_TEST_BIN)
 
 process-test: $(PROCESS_TEST_BIN) $(WORKER_BIN)
 	@./$(PROCESS_TEST_BIN)
+
+driver-test: $(DRIVER_TEST_BIN)
+	@./$(DRIVER_TEST_BIN)
 
 test: $(TEST_BIN) $(SENSOR_TEST_BIN) $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) $(WORKER_BIN)
 	@echo "=========================================="
