@@ -103,12 +103,18 @@ This produces the kernel module binary: `medisave_driver.ko`.
 # Insert module into Linux kernel
 sudo insmod medisave_driver.ko
 
-# Set read/write permissions for non-root user applications
+# Device node permissions:
+# For quick prototype testing, temporary device permissions may be used:
 sudo chmod 666 /dev/medisave
+
+# Production Recommendation:
+# Use a udev rule with restricted group-based access such as mode 0660:
+# echo 'KERNEL=="medisave", MODE="0660", GROUP="dialout"' | sudo tee /etc/udev/rules.d/99-medisave.rules
+# sudo usermod -aG dialout $USER
 
 # Verify device creation
 ls -l /dev/medisave
-# Expected: crw-rw-rw- 1 root root <major>, 0 /dev/medisave
+# Expected: crw-rw-rw- (or crw-rw---- with udev rule) 1 root <group> <major>, 0 /dev/medisave
 
 # Verify loaded module
 lsmod | grep medisave
@@ -166,11 +172,21 @@ dmesg | tail -n 5
 
 * **`insmod: ERROR: could not insert module ... Operation not permitted`**: Run with `sudo`.
 * **`make: *** /lib/modules/.../build: No such file or directory`**: Ensure kernel headers are installed (`sudo apt install linux-headers-$(uname -r)`).
-* **`Permission denied on /dev/medisave`**: Run `sudo chmod 666 /dev/medisave` or add a udev rule under `/etc/udev/rules.d/`.
+* **`Permission denied on /dev/medisave`**: For quick prototype testing, temporary device permissions may be used (`sudo chmod 666 /dev/medisave`). A production deployment should use a udev rule with restricted group-based access such as mode 0660:
+  ```bash
+  echo 'KERNEL=="medisave", MODE="0660", GROUP="dialout"' | sudo tee /etc/udev/rules.d/99-medisave.rules
+  sudo usermod -aG dialout $USER
+  ```
 
 ---
 
-## 12. Limitations
+## 12. Storage Threshold Note
+
+The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds are used for the demo (e.g., 2.0 °C to 8.0 °C cold chain) and should not be interpreted as universal storage requirements for all medicines.
+
+---
+
+## 13. Limitations
 
 * Simulates physical temperature registers in kernel memory rather than communicating over an actual I2C/SPI bus master.
 * Supports a single storage chamber (minor number 0); multi-chamber scaling will allocate sub-devices using minor numbers 0 through $N-1$.

@@ -21,7 +21,7 @@ class TcpServer {
 private:
     std::string host;
     int port;
-    socket_t serverSocket;
+    std::atomic<socket_t> serverSocket{INVALID_SOCKET_FD};
     std::atomic<bool> running{false};
 
     std::thread acceptThread;

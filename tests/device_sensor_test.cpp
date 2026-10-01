@@ -111,7 +111,8 @@ int main() {
         std::cout << "          To run Ring 0 hardware tests, execute:\n";
         std::cout << "            cd driver && make\n";
         std::cout << "            sudo insmod medisave_driver.ko\n";
-        std::cout << "            sudo chmod 666 /dev/medisave\n";
+        std::cout << "            sudo chmod 666 /dev/medisave  # Temporary prototype access\n";
+        std::cout << "            # Production: configure udev rule mode 0660 with restricted group\n";
         std::cout << "----------------------------------------\n";
     }
 

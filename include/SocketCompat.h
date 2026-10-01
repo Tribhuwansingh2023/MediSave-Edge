@@ -23,6 +23,11 @@ inline void closeSocketFd(socket_t s) {
         close(s);
     }
 }
+inline void shutdownSocket(socket_t s) {
+    if (s >= 0) {
+        shutdown(s, SHUT_RDWR);
+    }
+}
 inline int getLastSocketError() { return errno; }
 
 #else
@@ -51,6 +56,12 @@ inline void cleanupSocketLibrary() {
 inline void closeSocketFd(socket_t s) {
     if (s != INVALID_SOCKET) {
         closesocket(s);
+    }
+}
+
+inline void shutdownSocket(socket_t s) {
+    if (s != INVALID_SOCKET) {
+        shutdown(s, SD_BOTH);
     }
 }
 

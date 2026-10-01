@@ -7,7 +7,10 @@ This checklist verifies all technical milestones and operational guarantees for 
 - [x] All 8 test suites pass via `make test`.
 - [x] Linux kernel character driver builds via `make driver` (or `make -C driver`).
 - [x] Driver module loads cleanly: `sudo insmod driver/medisave_driver.ko`.
-- [x] Character device node exists and permissions set: `ls -l /dev/medisave && sudo chmod 666 /dev/medisave`.
+- [x] Character device node exists and permissions set: `ls -l /dev/medisave && sudo chmod 666 /dev/medisave` (temporary prototype testing; production uses udev rule mode 0660).
+
+> **EVALUATION & LOCAL RUN GUIDE:**  
+> For the complete step-by-step demonstration walkthrough and teacher viva defense Q&A, refer to [**`../../GUIDE.md`**](../../GUIDE.md).
 
 ---
 

@@ -5,6 +5,97 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <cassert>
+
+static bool runMessageValidationTests() {
+    bool passed = true;
+    FacilityMessage msg;
+    std::string err;
+
+    // 1. Valid message
+    if (parseFacilityMessage("Facility-A|Paracetamol|P2026A|150|SURPLUS\n", msg, &err) &&
+        msg.facility == "Facility-A" && msg.medicine == "Paracetamol" &&
+        msg.batch == "P2026A" && msg.quantity == 150 && msg.type == "SURPLUS") {
+        std::cout << "[PASS] Valid message parsing\n";
+    } else {
+        std::cout << "[FAIL] Valid message parsing\n";
+        passed = false;
+    }
+
+    // 2. Empty facility
+    if (!parseFacilityMessage("|Paracetamol|P2026A|150|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject empty facility\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject empty facility\n";
+        passed = false;
+    }
+
+    // 3. Empty medicine
+    if (!parseFacilityMessage("Facility-A||P2026A|150|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject empty medicine\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject empty medicine\n";
+        passed = false;
+    }
+
+    // 4. Empty batch
+    if (!parseFacilityMessage("Facility-A|Paracetamol||150|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject empty batch\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject empty batch\n";
+        passed = false;
+    }
+
+    // 5. Invalid quantity (non-numeric)
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|xyz|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject non-numeric quantity\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject non-numeric quantity\n";
+        passed = false;
+    }
+
+    // 6. Zero quantity
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|0|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject zero quantity\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject zero quantity\n";
+        passed = false;
+    }
+
+    // 7. Negative quantity
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|-50|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject negative quantity\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject negative quantity\n";
+        passed = false;
+    }
+
+    // 8. Invalid type
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|150|UNKNOWN", msg, &err)) {
+        std::cout << "[PASS] Reject invalid type (neither SURPLUS nor SHORTAGE)\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject invalid type\n";
+        passed = false;
+    }
+
+    // 9. Missing fields (< 5)
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|150", msg, &err)) {
+        std::cout << "[PASS] Reject missing fields (< 5)\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject missing fields\n";
+        passed = false;
+    }
+
+    // 10. Extra fields (> 5)
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|150|SURPLUS|EXTRA", msg, &err)) {
+        std::cout << "[PASS] Reject extra fields (> 5)\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject extra fields\n";
+        passed = false;
+    }
+
+    return passed;
+}
 
 int main() {
     std::cout << "========================================\n";
@@ -12,6 +103,14 @@ int main() {
     std::cout << "========================================\n\n";
 
     bool allPassed = true;
+
+    // Run message validation unit tests
+    std::cout << "--- TCP Message Protocol Validation ---\n";
+    if (!runMessageValidationTests()) {
+        allPassed = false;
+    }
+
+    std::cout << "\n--- Socket Server & Client Lifecycle ---\n";
     const int testPort = 5055;
 
     // 1. Server startup
@@ -61,7 +160,7 @@ int main() {
         allPassed = false;
     }
 
-    // 6. Server shutdown
+    // 6. Server shutdown (Interruption of accept loop and clean thread termination)
     server.stop();
     if (!server.isRunning()) {
         std::cout << "[PASS] Server shutdown\n";

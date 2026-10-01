@@ -16,9 +16,10 @@ This checklist confirms that the project is completely prepared for final submis
 ---
 
 ## 2. Demonstration & Presentation Readiness
+- [x] **Master Guide Ready**: Comprehensive local run & trainer viva guide created at `GUIDE.md`.
 - [x] **Demo Script Ready**: 5–10 minute step-by-step presentation script prepared in `docs/demo/trainer_demo.md`.
 - [x] **Demo Commands Ready**: Exact terminal commands prepared in `docs/demo/demo_commands.md`.
-- [x] **Demo Data Ready**: Valid fixture dataset initialized in `data/medicines.txt`.
+- [x] **Demo Data Ready**: 25 realistic medicine records initialized in `data/medicines.txt`.
 - [x] **Evidence Checklist Ready**: 14 terminal verification checkpoints prepared in `docs/demo/evidence_checklist.md`.
 - [x] **Trainer Demo Timing**: Script verified to fit within 5–10 minutes.
 

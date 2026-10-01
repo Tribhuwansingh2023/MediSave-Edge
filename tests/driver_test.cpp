@@ -14,10 +14,10 @@ int main() {
     // Step 1: Open device node
     if (!sensor.connect()) {
         std::cerr << "ERROR: /dev/medisave is unavailable.\n";
-        std::cerr << "Please load the MediSave Edge driver first:\n";
         std::cerr << "  cd driver\n";
         std::cerr << "  sudo insmod medisave_driver.ko\n";
-        std::cerr << "  sudo chmod 666 /dev/medisave\n\n";
+        std::cerr << "  sudo chmod 666 /dev/medisave  # Temporary prototype access\n";
+        std::cerr << "  # Production: configure udev rule mode 0660 with restricted group\n\n";
         std::cerr << "Driver test exited cleanly (device node absent).\n";
         return 0; // Graceful non-zero avoidance on unprivileged test environments
     }

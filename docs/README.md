@@ -2,6 +2,9 @@
 
 Welcome to the comprehensive technical documentation for **MediSave Edge** (Linux-Based Medicine Storage Monitoring, Inventory Alert and Redistribution Decision System).
 
+> **QUICK START & EVALUATION GUIDE:**  
+> For step-by-step local running instructions, live trainer presentation walkthroughs, and viva defense Q&A, refer to [**`../GUIDE.md`**](../GUIDE.md).
+
 ---
 
 ## Documentation Directory Structure
@@ -62,6 +65,7 @@ docs/
 ---
 
 ## 6. Milestone Progress Reports (`docs/progress/`)
+* [**`MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md`**](progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md) — **Master 7–8 Day Consolidated Progress Report** covering the complete project lifecycle (Problem, Objectives, Daily Milestones, Testing Matrix, Limitations, and Evaluation Status).
 * [`day1_inventory.md`](progress/day1_inventory.md) — Task 2: Core C++ inventory and expiry management.
 * [`day1_device_driver.md`](progress/day1_device_driver.md) — Task 3: Linux character device driver module.
 * [`task4_driver_integration.md`](progress/task4_driver_integration.md) — Task 4: User-space driver integration HAL.

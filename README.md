@@ -18,12 +18,15 @@ The system is designed as an operational prototype and decision-support monitori
 > **CLINICAL & REGULATORY NOTICE:**  
 > MediSave Edge is an advisory decision-support software prototype. It does **not** make autonomous medical diagnoses, establish treatment regimens, or automatically execute physical drug transfers. All redistribution proposals require human review and authorization by certified medical officers and pharmacists.
 
+> **EVALUATION & LOCAL RUN GUIDE:**  
+> For complete step-by-step local running instructions, teacher demonstration procedures, and trainer viva defense Q&A, refer to [**`GUIDE.md`**](GUIDE.md).
+
 ---
 
 ## 2. Problem Statement
 
 Public health facilities and decentralized healthcare depots routinely face critical inventory imbalances:
-* **Thermal Spoilage Risks**: Temperature-sensitive pharmaceuticals (e.g., Insulin, Epinephrine, vaccines) require strict cold-chain maintenance (2.0°C to 8.0°C). Undetected cooling failures cause silent efficacy loss.
+* **Thermal Spoilage Risks**: Temperature-sensitive pharmaceuticals require strict storage maintenance. The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds (such as 2.0°C to 8.0°C for refrigerated cold-chain items) are used for the demo and should not be interpreted as universal storage requirements for all medicines. Undetected cooling failures cause silent efficacy loss.
 * **Unmonitored Shelf-Life Expiry**: Medicines expire unconsumed due to lack of automated tracking, resulting in financial loss and wasted supplies.
 * **Regional Supply Imbalances**: Acute drug shortages in rural clinics often occur simultaneously with surplus overstock in central district warehouses.
 * **Manual Tracking Overhead**: Manual clipboard checks and fragmented spreadsheets fail to provide real-time alerts or timely re-allocation decisions.
@@ -467,13 +470,22 @@ make driver
 
 ## 18. Running the Project
 
-### 1. Load the Kernel Module:
+### 1. Load the Kernel Module (on Linux host with Kernel headers):
 ```bash
 sudo insmod driver/medisave_driver.ko
+
+# Temporary prototype testing permission:
 sudo chmod 666 /dev/medisave
+
+# Recommended Production deployment uses a restricted udev rule:
+# echo 'KERNEL=="medisave", MODE="0660", GROUP="dialout"' | sudo tee /etc/udev/rules.d/99-medisave.rules
+
 ls -l /dev/medisave
 dmesg | tail -n 5
 ```
+
+> **Security Note on Device Permissions:**  
+> For quick prototype testing, temporary device permissions may be used (`sudo chmod 666 /dev/medisave`). A production deployment should use a udev rule with restricted group-based access such as mode 0660.
 
 ### 2. Launch Main Interactive CLI:
 ```bash
@@ -501,34 +513,38 @@ sudo rmmod medisave_driver
 
 ## 19. Testing
 
-Execute all 8 automated unit and integration test suites:
+Execute all automated unit and integration test suites:
 ```bash
 make test
 ```
 
 Official test report: [`docs/testing/test_results.md`](docs/testing/test_results.md)  
-Comprehensive audit: [`docs/testing/project_audit.md`](docs/testing/project_audit.md)
+Comprehensive audit: [`docs/testing/project_audit.md`](docs/testing/project_audit.md)  
+Consolidated Progress Report: [`docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md`](docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md)
 
 | Test Suite | Focus Area | Status |
 | :--- | :--- | :---: |
 | `bin/test_inventory` | CRUD operations, calendar expiry, Max-Heap triage, persistence | **35 / 35 PASS** |
 | `bin/device_sensor_test` | POSIX system call wrapper, IOCTL control plane, parameter validation | **14 / 14 PASS** |
-| `bin/driver_test` | Direct kernel module open, read, write, ioctl, and close verification | **PASS** |
+| `bin/driver_test` | Kernel module character device test / user-space fallback verification | **PASS** |
 | `bin/ipc_test` | Anonymous pipe streaming, POSIX shared memory, POSIX semaphores | **PASS** |
 | `bin/process_test` | Multi-process fork, exec, waitpid harvesting, zombie prevention | **PASS** |
 | `bin/thread_test` | `std::thread`, `std::mutex`, `std::condition_variable` alert triage | **PASS** |
-| `bin/tcp_test` | TCP socket server, client connection, payload exchange, ACK parsing | **PASS** |
+| `bin/tcp_test` | TCP socket server, client connection, payload exchange, 10 validation test cases | **PASS** |
 | `bin/redistribution_test` | Surplus/shortage matching, transfer limits, deterministic priority | **PASS** |
 | `bin/system_monitor_test` | Virtual filesystem `/proc` direct parsing with fallback resilience | **PASS** |
+| `driver/medisave_driver.ko` | Linux Character Device Driver (Kernel C99) | **SOURCE VERIFIED** *(Live verification pending Linux host)* |
 
 ---
 
 ## 20. Limitations
 
-1. **Simulated Hardware Sensor**: Environmental telemetry is generated within Linux kernel space memory using an internal state variable. Deployment on physical medical refrigerators requires interfacing with real 1-Wire (DS18B20) or I2C sensors.
-2. **Advisory Decision Support**: Redistribution proposals are intentionally non-autonomous to respect healthcare regulatory guidelines requiring licensed pharmacist sign-off.
-3. **Localhost Socket Networking**: Distributed facility simulation defaults to `127.0.0.1`. Cross-datacenter production deployments require TLS encryption and WAN routing.
-4. **Demonstration Dataset**: Medicine catalog and facility inventories use fictional demonstration datasets.
+1. **Configurable Demonstration Thresholds**: The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds are used for the demo and should not be interpreted as universal storage requirements for all medicines.
+2. **Simulated Hardware Sensor**: Environmental telemetry is generated within Linux kernel space memory using an internal state variable. Deployment on physical medical refrigerators requires interfacing with real 1-Wire (DS18B20) or I2C sensors.
+3. **Advisory Decision Support**: Redistribution proposals are intentionally non-autonomous to respect healthcare regulatory guidelines requiring licensed pharmacist sign-off.
+4. **Localhost Socket Networking**: Distributed facility simulation defaults to `127.0.0.1`. Cross-datacenter production deployments require TLS encryption and WAN routing.
+5. **Linux Kernel Dependency for Live Driver**: Live module insertion (`insmod`) requires a Linux kernel with kernel headers (`/lib/modules/$(uname -r)/build`). The driver source code is fully implemented and statically verified.
+6. **Demonstration Dataset**: Medicine catalog and facility inventories use fictional demonstration datasets.
 
 ---
 

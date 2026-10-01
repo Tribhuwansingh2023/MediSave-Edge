@@ -2,6 +2,9 @@
 
 This command sheet contains the exact commands required to execute the complete end-to-end trainer demonstration.
 
+> **FULL RUN & VIVA GUIDE:**  
+> For the complete demonstration walkthrough and evaluator Q&A defense, see [**`../../GUIDE.md`**](../../GUIDE.md).
+
 ---
 
 ## 1. Environment & Build Setup
@@ -31,9 +34,13 @@ make driver
 # Insert kernel module into running kernel
 sudo insmod driver/medisave_driver.ko
 
-# Verify device registration and permissions
+# Verify device registration
 ls -l /dev/medisave
+
+# Set temporary prototype testing permission:
 sudo chmod 666 /dev/medisave
+# Production alternative (udev rule):
+# echo 'KERNEL=="medisave", MODE="0660", GROUP="dialout"' | sudo tee /etc/udev/rules.d/99-medisave.rules
 
 # Check kernel ring buffer log
 dmesg | tail -n 15

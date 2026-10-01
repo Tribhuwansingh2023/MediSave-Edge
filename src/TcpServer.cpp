@@ -74,27 +74,37 @@ bool TcpServer::start() {
 }
 
 void TcpServer::stop() {
-    if (!running && serverSocket == INVALID_SOCKET_FD) {
+    bool expected = true;
+    if (!running.compare_exchange_strong(expected, false)) {
+        // Already stopped or not running; ensure socket is closed if left open
+        socket_t sock = serverSocket.exchange(INVALID_SOCKET_FD);
+        if (sock != INVALID_SOCKET_FD) {
+            shutdownSocket(sock);
+            closeSocketFd(sock);
+        }
         return;
     }
 
-    running = false;
-
-    // Closing the listening socket unblocks accept() on POSIX and Windows
-    if (serverSocket != INVALID_SOCKET_FD) {
-        closeSocketFd(serverSocket);
-        serverSocket = INVALID_SOCKET_FD;
+    // Atomically retrieve and invalidate server socket so it is closed exactly once
+    socket_t sock = serverSocket.exchange(INVALID_SOCKET_FD);
+    if (sock != INVALID_SOCKET_FD) {
+        shutdownSocket(sock);
+        closeSocketFd(sock);
     }
 
     if (acceptThread.joinable()) {
-        acceptThread.join();
+        if (std::this_thread::get_id() != acceptThread.get_id()) {
+            acceptThread.join();
+        }
     }
 
     {
         std::lock_guard<std::mutex> lock(threadsMutex);
         for (auto& th : clientThreads) {
             if (th.joinable()) {
-                th.join();
+                if (std::this_thread::get_id() != th.get_id()) {
+                    th.join();
+                }
             }
         }
         clientThreads.clear();
@@ -102,7 +112,7 @@ void TcpServer::stop() {
 }
 
 bool TcpServer::isRunning() const {
-    return running;
+    return running.load();
 }
 
 int TcpServer::getPort() const {
@@ -114,34 +124,67 @@ std::string TcpServer::getHost() const {
 }
 
 void TcpServer::acceptLoop() {
-    while (running) {
-        sockaddr_in clientAddr{};
-#if defined(__linux__) || defined(__unix__)
-        socklen_t clientLen = sizeof(clientAddr);
-#else
-        int clientLen = sizeof(clientAddr);
-#endif
-
-        socket_t clientSock = accept(serverSocket, reinterpret_cast<sockaddr*>(&clientAddr), &clientLen);
-
-        if (clientSock == INVALID_SOCKET_FD) {
-            if (!running) {
-                break;
-            }
-            continue;
+    while (running.load()) {
+        socket_t sock = serverSocket.load();
+        if (sock == INVALID_SOCKET_FD) {
+            break;
         }
 
-        std::string clientIp = inet_ntoa(clientAddr.sin_addr);
+        // Use select with a short 100ms timeout to avoid indefinite blocking in accept()
+        fd_set readFds;
+        FD_ZERO(&readFds);
+        FD_SET(sock, &readFds);
 
-        {
-            std::lock_guard<std::mutex> lock(threadsMutex);
-            clientThreads.emplace_back(&TcpServer::handleClient, this, clientSock, clientIp);
+        timeval tv{};
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000; // 100 ms
+
+        int selRes = select(static_cast<int>(sock) + 1, &readFds, nullptr, nullptr, &tv);
+        if (!running.load()) {
+            break;
+        }
+
+        if (selRes > 0 && FD_ISSET(sock, &readFds)) {
+            sockaddr_in clientAddr{};
+#if defined(__linux__) || defined(__unix__)
+            socklen_t clientLen = sizeof(clientAddr);
+#else
+            int clientLen = sizeof(clientAddr);
+#endif
+
+            socket_t clientSock = accept(sock, reinterpret_cast<sockaddr*>(&clientAddr), &clientLen);
+
+            if (clientSock == INVALID_SOCKET_FD) {
+                if (!running.load()) {
+                    break;
+                }
+                continue;
+            }
+
+            std::string clientIp = inet_ntoa(clientAddr.sin_addr);
+
+            {
+                std::lock_guard<std::mutex> lock(threadsMutex);
+                clientThreads.emplace_back(&TcpServer::handleClient, this, clientSock, clientIp);
+            }
         }
     }
 }
 
 void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
     (void)clientIp;
+
+    // Set 2-second receive timeout to prevent hung client threads
+#if defined(__linux__) || defined(__unix__)
+    struct timeval tv{};
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
+    setsockopt(clientSock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#else
+    DWORD timeoutMs = 2000;
+    setsockopt(clientSock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+#endif
+
     char buffer[1024];
     std::memset(buffer, 0, sizeof(buffer));
 
@@ -151,8 +194,9 @@ void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
         std::string rawMessage(buffer);
 
         FacilityMessage msg;
-        if (parseFacilityMessage(rawMessage, msg)) {
-            // Display formatted message in stdout as required in Step 24
+        std::string errorReason;
+        if (parseFacilityMessage(rawMessage, msg, &errorReason)) {
+            // Display formatted message in stdout as required
             std::cout << "\n[RECEIVED]\n";
             std::cout << "Facility: " << msg.facility << "\n";
             std::cout << "Medicine: " << msg.medicine << "\n";
@@ -169,7 +213,7 @@ void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
             std::string ack = createAckResponse(msg.facility);
             send(clientSock, ack.c_str(), static_cast<int>(ack.length()), 0);
         } else {
-            std::string err = "ERR|INVALID_FORMAT\n";
+            std::string err = "ERR|" + errorReason + "\n";
             send(clientSock, err.c_str(), static_cast<int>(err.length()), 0);
         }
     }

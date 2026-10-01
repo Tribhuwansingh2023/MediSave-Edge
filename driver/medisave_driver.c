@@ -70,19 +70,49 @@ static const char* get_temperature_status(int temp_milli)
 /**
  * @brief Helper to parse fixed-point ASCII temperature string (e.g., "11.20", "6.5", "-3.5")
  * into signed milli-Celsius integer without floating-point math.
+ *
+ * Architecture Note — Why integer milli-Celsius representation is used:
+ * Linux kernel code executes in Ring 0 where hardware floating-point registers (FPU/SIMD)
+ * are not preserved across kernel preemption and context switches for performance reasons
+ * and to prevent kernel FPU exceptions/traps. By scaling Celsius values by 1000 into fixed-point
+ * integer milli-Celsius (e.g., 6.50 °C = 6500 mC), the driver achieves 3 decimal places of
+ * physical precision using only standard ALU integer arithmetic.
+ *
+ * Prototype Threshold Note:
+ * The prototype uses configurable temperature thresholds for demonstration.
+ * Sample/default thresholds are used for the demo (e.g., 2.0 °C to 8.0 °C cold chain) and
+ * should not be interpreted as universal storage requirements for all medicines.
+ *
+ * Strict Validation Rules:
+ * - Reject NULL or empty input
+ * - Allow optional leading sign (+ or -)
+ * - Require at least one numeric digit
+ * - Allow at most one decimal point with maximum 3 fractional digits
+ * - Reject alphabetical characters and trailing garbage (e.g., "abc", "12xyz", ".", "+")
+ * - Enforce prototype sensor range: -50.000 °C (-50000 mC) to 100.000 °C (100000 mC)
+ *
+ * Returns 0 on success, or negative error code (-EINVAL, -ERANGE) on failure.
  */
 static int parse_temperature_to_milli(const char *str, int *out_milli)
 {
     int sign = 1;
-    int int_part = 0;
+    long int_part = 0;
     int frac_part = 0;
     int frac_digits = 0;
+    int digits_seen = 0;
     int i = 0;
+    long total_milli = 0;
+
+    if (!str || !out_milli) {
+        return -EINVAL;
+    }
 
     /* Trim leading whitespace */
-    while (str[i] == ' ' || str[i] == '\t') i++;
+    while (str[i] == ' ' || str[i] == '\t' || str[i] == '\r' || str[i] == '\n') {
+        i++;
+    }
 
-    /* Check sign */
+    /* Check optional sign */
     if (str[i] == '-') {
         sign = -1;
         i++;
@@ -93,17 +123,42 @@ static int parse_temperature_to_milli(const char *str, int *out_milli)
     /* Parse integer component */
     while (str[i] >= '0' && str[i] <= '9') {
         int_part = int_part * 10 + (str[i] - '0');
+        digits_seen++;
         i++;
+        if (int_part > 100000) {
+            return -ERANGE; /* Exceeds physical sensor capability */
+        }
     }
 
     /* Parse optional fractional component */
     if (str[i] == '.') {
         i++;
-        while (str[i] >= '0' && str[i] <= '9' && frac_digits < 3) {
-            frac_part = frac_part * 10 + (str[i] - '0');
-            frac_digits++;
+        while (str[i] >= '0' && str[i] <= '9') {
+            if (frac_digits < 3) {
+                frac_part = frac_part * 10 + (str[i] - '0');
+                frac_digits++;
+            } else {
+                /* More than 3 fractional digits: reject invalid precision */
+                return -EINVAL;
+            }
+            digits_seen++;
             i++;
         }
+    }
+
+    /* Input must contain at least one valid digit */
+    if (digits_seen == 0) {
+        return -EINVAL;
+    }
+
+    /* Strip trailing whitespace */
+    while (str[i] == ' ' || str[i] == '\t' || str[i] == '\r' || str[i] == '\n') {
+        i++;
+    }
+
+    /* Any remaining character indicates trailing garbage (e.g. "12xyz") */
+    if (str[i] != '\0') {
+        return -EINVAL;
     }
 
     /* Normalize fraction to thousandths (milli-Celsius) */
@@ -113,7 +168,14 @@ static int parse_temperature_to_milli(const char *str, int *out_milli)
         frac_part *= 10;
     }
 
-    *out_milli = sign * (int_part * 1000 + frac_part);
+    total_milli = sign * (int_part * 1000 + frac_part);
+
+    /* Enforce prototype storage range: -50.000 °C to 100.000 °C */
+    if (total_milli < -50000 || total_milli > 100000) {
+        return -ERANGE;
+    }
+
+    *out_milli = (int)total_milli;
     return 0;
 }
 
@@ -187,8 +249,9 @@ static ssize_t medisave_write(struct file *filep, const char __user *user_buf,
     int parsed_milli = 0;
     const char *status;
     size_t copy_len;
+    int parse_rc;
 
-    if (count == 0) return 0;
+    if (count == 0) return -EINVAL;
 
     copy_len = (count < BUFFER_SIZE - 1) ? count : (BUFFER_SIZE - 1);
 
@@ -198,7 +261,8 @@ static ssize_t medisave_write(struct file *filep, const char __user *user_buf,
     }
     kbuf[copy_len] = '\0';
 
-    if (parse_temperature_to_milli(kbuf, &parsed_milli) == 0) {
+    parse_rc = parse_temperature_to_milli(kbuf, &parsed_milli);
+    if (parse_rc == 0) {
         mutex_lock(&medisave_mutex);
         current_temp_milli = parsed_milli;
         status = get_temperature_status(current_temp_milli);
@@ -208,12 +272,11 @@ static ssize_t medisave_write(struct file *filep, const char __user *user_buf,
                 parsed_milli / 1000,
                 abs((parsed_milli % 1000) / 10),
                 status);
+        return count;
     } else {
-        pr_warn("medisave: Failed to parse input string '%s'\n", kbuf);
-        return -EINVAL;
+        pr_warn("medisave: Rejected malformed input string '%s' (error code: %d)\n", kbuf, parse_rc);
+        return parse_rc;
     }
-
-    return count;
 }
 
 static long medisave_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
