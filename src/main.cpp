@@ -11,7 +11,12 @@
 #include "alert_system.h"
 #include "DeviceSensor.h"
 #include "StorageMonitor.h"
+#include "TemperatureMonitor.h"
+#include "RedistributionEngine.h"
+#include "SystemMonitor.h"
 #include "ProcessManager.h"
+#include "ThreadedMonitor.h"
+#include "NetworkManager.h"
 
 #if defined(__linux__) || defined(__unix__)
 #include <unistd.h>
@@ -70,12 +75,12 @@ static int readInt(const std::string& prompt, int minVal = 0, int maxVal = 10000
             }
             std::cout << " [Error] Value must be between " << minVal << " and " << maxVal << ".\n";
         } else {
-            if (g_shutdownRequested) return 16;
+            if (g_shutdownRequested) return 18;
             std::cout << " [Error] Invalid integer input. Please try again.\n";
         }
         clearCin();
     }
-    return 16;
+    return 18;
 }
 
 static double readDouble(const std::string& prompt, double minVal = -50.0, double maxVal = 100.0) {
@@ -180,10 +185,10 @@ static void handleAddMedicine(InventoryManager& inv) {
             std::cout << " [Success] Medicine '" << name << "' added successfully.\n";
             inv.saveToFile(DATA_FILE_PATH);
         } else {
-            std::cout << " [Error] Failed to add medicine.\n";
+            std::cout << " [Error] Failed to add medicine record.\n";
         }
-    } catch (const std::exception& ex) {
-        std::cout << " [Validation Error] " << ex.what() << "\n";
+    } catch (const std::exception& e) {
+        std::cout << " [Error] Exception during creation: " << e.what() << "\n";
     }
 }
 
@@ -333,62 +338,72 @@ static void handleCheckExpiry(const InventoryManager& inv) {
     std::cout << "========================================\n";
 }
 
-// Storage Sensor Driver Operations
-static void handleReadStorageTemperature(StorageMonitor& monitor, DeviceSensor& sensor) {
-    std::cout << "\n--- Read Storage Temperature ---\n";
-    double temp = 0.0;
-    std::string status;
+// Storage Temperature Handlers (Centralized TemperatureMonitor)
+static void handleReadStorageTemperature(TemperatureMonitor& tempMon) {
+    std::cout << "\n========================================\n";
+    std::cout << "      READ STORAGE TEMPERATURE\n";
+    std::cout << "========================================\n\n";
 
-    if (monitor.getCurrentCondition(temp, status)) {
-        std::cout << "----------------------------------------\n";
-        std::cout << "Device Node : " << sensor.getDevicePath() << "\n";
-        std::cout << "Temperature : " << std::fixed << std::setprecision(2) << temp << " C\n";
-        std::cout << "Status      : " << status << "\n";
-        std::cout << "----------------------------------------\n";
+    if (tempMon.updateReading()) {
+        TemperatureReading r = tempMon.getLatestReading();
+        std::cout << "Sensor Device : " << tempMon.getDevicePath() << "\n";
+        std::cout << "Temperature   : " << std::fixed << std::setprecision(2) << r.temperature << " C\n";
+        std::cout << "Status        : " << r.status << "\n";
+        std::cout << "Timestamp     : " << r.timestamp << "\n\n";
+
+        if (r.status == "CRITICAL" || r.status == "WARNING" || r.status == "LOW") {
+            std::cout << "ALERT: Storage condition requires attention.\n";
+        }
     } else {
-        std::cout << "\n----------------------------------------\n";
-        std::cout << "STORAGE SENSOR ERROR\n";
-        std::cout << "----------------------------------------\n";
-        std::cout << sensor.getDevicePath() << " is unavailable.\n\n";
-        std::cout << "Please load the MediSave Edge Linux\n";
-        std::cout << "device driver before using storage\n";
-        std::cout << "monitoring.\n\n";
-        std::cout << "Inventory features remain available.\n";
-        std::cout << "----------------------------------------\n";
+        std::cout << "[NOTICE] Storage sensor (" << tempMon.getDevicePath() << ") is UNAVAILABLE.\n";
+        std::cout << "Please ensure the MediSave Linux kernel driver is loaded.\n";
     }
+    std::cout << "========================================\n";
 }
 
-static void handleSetSimulatedTemperature(DeviceSensor& sensor, StorageMonitor& monitor) {
-    std::cout << "\n--- Set Simulated Temperature ---\n";
-    if (!monitor.isAvailable()) {
-        std::cout << "\n----------------------------------------\n";
-        std::cout << "STORAGE SENSOR ERROR\n";
-        std::cout << "----------------------------------------\n";
-        std::cout << sensor.getDevicePath() << " is unavailable.\n\n";
-        std::cout << "Please load the MediSave Edge Linux\n";
-        std::cout << "device driver before using storage\n";
-        std::cout << "monitoring.\n\n";
-        std::cout << "Inventory features remain available.\n";
-        std::cout << "----------------------------------------\n";
-        return;
-    }
+static void handleSetSimulatedTemperature(TemperatureMonitor& tempMon) {
+    std::cout << "\n========================================\n";
+    std::cout << "     SET SIMULATED TEMPERATURE\n";
+    std::cout << "========================================\n\n";
+    std::cout << "Driver Target : " << tempMon.getDevicePath() << "\n\n";
 
-    double newTemp = readDouble("Enter new simulated temperature (°C): ", -50.0, 100.0);
-    if (sensor.setTemperature(newTemp)) {
-        std::cout << " [Success] Temperature " << std::fixed << std::setprecision(2)
-                  << newTemp << " C written to " << sensor.getDevicePath() << ".\n";
+    double temp = readDouble("Enter simulated temperature (°C): ", -50.0, 100.0);
+    std::cout << "\nDispatching temperature " << std::fixed << std::setprecision(2) << temp
+              << " °C to kernel driver...\n";
+
+    if (tempMon.setSimulatedTemperature(temp)) {
+        TemperatureReading r = tempMon.getLatestReading();
+        std::cout << " [Success] Temperature updated in kernel module.\n";
+        std::cout << " New Temperature : " << std::fixed << std::setprecision(2) << r.temperature << " C\n";
+        std::cout << " Resulting Status: " << r.status << "\n\n";
+
+        if (r.status == "CRITICAL") {
+            std::cout << "========================================\n";
+            std::cout << "            STORAGE ALERT\n";
+            std::cout << "========================================\n";
+            std::cout << "Temperature: " << std::fixed << std::setprecision(2) << r.temperature << " C\n";
+            std::cout << "Status: CRITICAL\n\n";
+            std::cout << "Storage condition requires immediate attention.\n";
+            std::cout << "========================================\n";
+        } else if (r.status == "WARNING" || r.status == "LOW") {
+            std::cout << "[STORAGE " << r.status << "] Storage condition requires attention.\n";
+        }
     } else {
-        std::cout << " [Error] " << sensor.getLastError() << "\n";
+        std::cout << " [Error] Failed to write to " << tempMon.getDevicePath() << ".\n";
+        std::cout << " Ensure kernel driver module is loaded (insmod) with write permissions.\n";
     }
+    std::cout << "========================================\n";
 }
 
-static void handleShowStorageCondition(StorageMonitor& monitor, const InventoryManager& inv) {
-    monitor.displayCondition();
+static void handleShowStorageCondition(TemperatureMonitor& tempMon, const InventoryManager& inv) {
+    tempMon.updateReading();
+    tempMon.displayCondition();
 
     double temp = 0.0;
-    std::string status;
-    if (monitor.getCurrentCondition(temp, status)) {
-        if (status == "CRITICAL" || status == "WARNING" || status == "LOW") {
+    std::string stat;
+    std::string ts;
+    if (tempMon.getLastCondition(temp, stat, ts)) {
+        if (stat == "CRITICAL" || stat == "WARNING" || stat == "LOW") {
             std::vector<Medicine> breachedMeds;
             for (const auto& med : inv.getAllMedicines()) {
                 if (med.isTemperatureViolated(temp)) {
@@ -410,6 +425,117 @@ static void handleShowStorageCondition(StorageMonitor& monitor, const InventoryM
     }
 }
 
+// Facility Communication Handlers
+static void handleSendFacilityUpdate(NetworkManager& net, RedistributionEngine& redistEngine) {
+    std::cout << "\n========================================\n";
+    std::cout << "       SEND FACILITY UPDATE\n";
+    std::cout << "========================================\n\n";
+
+    std::string facility = readNonEmptyString("Enter Facility ID (e.g. Facility-A): ");
+    std::string medicine = readNonEmptyString("Enter Medicine Name (e.g. Paracetamol): ");
+    std::string batch = readNonEmptyString("Enter Batch Number (e.g. P2026A): ");
+    int quantity = readInt("Enter Quantity (units): ", 1, 100000);
+
+    std::cout << "\nUpdate Type:\n";
+    std::cout << " 1. SURPLUS (Available for Redistribution)\n";
+    std::cout << " 2. SHORTAGE (Urgent Supply Needed)\n";
+    int typeChoice = readInt("Select Type (1-2): ", 1, 2);
+    std::string type = (typeChoice == 1) ? "SURPLUS" : "SHORTAGE";
+
+    std::cout << "\nSending payload: " << facility << "|" << medicine << "|" << batch << "|" << quantity << "|" << type << "\n";
+
+    std::string ackResponse;
+    std::string errorMsg;
+    if (net.sendFacilityUpdate(facility, medicine, batch, quantity, type, ackResponse, errorMsg)) {
+        std::cout << "\n [Success] Server acknowledgement received: " << ackResponse << "\n";
+        std::cout << " Facility inventory update recorded successfully.\n";
+    } else {
+        std::cout << "\n [Notice] Direct TCP delivery returned: " << errorMsg << "\n";
+        std::cout << " Recording update into local redistribution engine buffer.\n";
+    }
+
+    // Ingest into local engine buffer for subsequent redistribution analysis
+    FacilityMessage msg{facility, medicine, batch, quantity, type};
+    redistEngine.ingestFacilityMessage(msg);
+
+    std::cout << "========================================\n";
+}
+
+static void handleAnalyzeRedistribution(RedistributionEngine& redistEngine, NetworkManager& net, const InventoryManager& inv) {
+    // 1. Ingest any updates stored by background TCP server
+    auto tcpUpdates = net.getStoredFacilityUpdates();
+    redistEngine.ingestFacilityMessages(tcpUpdates);
+
+    // 2. Ingest current local inventory as "Facility-Local"
+    redistEngine.ingestLocalInventory("Facility-Local", inv.getAllMedicines());
+
+    // 3. Generate and display matching recommendations
+    redistEngine.displayRecommendations();
+}
+
+// System Health & Dashboard Handlers
+static void handleShowSystemHealth(const SystemMonitor& sysMon, DeviceSensor& sensor,
+                                   ThreadedMonitor& threadedMon, NetworkManager& net) {
+    ServiceStatus s;
+    s.driver = sensor.isConnected() ? "CONNECTED" : (sensor.connect() ? "CONNECTED" : "UNAVAILABLE");
+    s.storageSensor = sensor.isConnected() ? "AVAILABLE" : "UNAVAILABLE";
+    s.tcpServer = net.isServerRunning() ? "RUNNING" : "STOPPED";
+    s.monitoring = threadedMon.isRunning() ? "RUNNING" : "STOPPED";
+
+    sysMon.displaySystemHealth(s);
+}
+
+static void handleShowSystemDashboard(const SystemMonitor& sysMon, TemperatureMonitor& tempMon,
+                                      const InventoryManager& inv, RedistributionEngine& redistEngine,
+                                      NetworkManager& net, ThreadedMonitor& threadedMon, DeviceSensor& sensor) {
+    tempMon.updateReading();
+    TemperatureReading r = tempMon.getLatestReading();
+
+    // Refresh redistribution data
+    auto tcpUpdates = net.getStoredFacilityUpdates();
+    redistEngine.ingestFacilityMessages(tcpUpdates);
+    redistEngine.ingestLocalInventory("Facility-Local", inv.getAllMedicines());
+    auto recs = redistEngine.generateRecommendations();
+
+    CpuInfo cpu;
+    sysMon.getCpuInfo(cpu, 50);
+
+    MemoryInfo mem;
+    sysMon.getMemoryInfo(mem);
+
+    double uptimeSec = 0.0;
+    std::string uptimeStr;
+    sysMon.getUptime(uptimeSec, uptimeStr);
+
+    auto expiredMeds = inv.getExpiredMedicines();
+    auto expiringMeds = inv.getExpiringSoonMedicines(30);
+    auto lowStockMeds = inv.getLowStockMedicines();
+
+    DashboardSnapshot snap;
+    snap.temperature = r.temperature;
+    snap.storageStatus = r.status;
+
+    snap.totalMedicines = static_cast<int>(inv.getMedicineCount());
+    snap.lowStockCount = static_cast<int>(lowStockMeds.size());
+    snap.expiringCount = static_cast<int>(expiringMeds.size());
+    snap.expiredCount = static_cast<int>(expiredMeds.size());
+
+    snap.facilityCount = static_cast<int>(redistEngine.getUniqueFacilityNamesCount());
+    snap.shortageCount = static_cast<int>(redistEngine.getShortageCount());
+    snap.surplusCount = static_cast<int>(redistEngine.getSurplusCount());
+    snap.recommendationCount = static_cast<int>(recs.size());
+
+    snap.cpuUsagePercent = cpu.usagePercent;
+    snap.memoryUsagePercent = mem.usagePercent;
+    snap.uptimeFormatted = uptimeStr;
+
+    snap.driverStatus = sensor.isConnected() ? "CONNECTED" : (sensor.connect() ? "CONNECTED" : "UNAVAILABLE");
+    snap.monitoringStatus = threadedMon.isRunning() ? "RUNNING" : "STOPPED";
+    snap.tcpStatus = net.isServerRunning() ? "RUNNING" : "STOPPED";
+
+    SystemMonitor::displaySystemDashboard(snap);
+}
+
 int main() {
     // Register POSIX signal handling
 #if defined(__linux__) || defined(__unix__)
@@ -427,12 +553,17 @@ int main() {
 
     InventoryManager inventory;
     DeviceSensor sensor("/dev/medisave");
-    StorageMonitor monitor(sensor);
+    StorageMonitor storageMonitor(sensor);
+    TemperatureMonitor tempMonitor(sensor);
+    RedistributionEngine redistributionEngine;
+    SystemMonitor systemMonitor;
     ProcessManager processManager;
+    ThreadedMonitor threadedMonitor(sensor, storageMonitor);
+    NetworkManager networkManager(DEFAULT_TCP_HOST, DEFAULT_TCP_PORT, "Facility-Central");
 
     std::cout << "========================================\n";
     std::cout << "        MEDISAVE EDGE SYSTEM\n";
-    std::cout << " Medicine Storage & Inventory Monitor\n";
+    std::cout << " Linux Medicine Storage & Redistribution\n";
     std::cout << "========================================\n";
 
     // Attempt to load existing inventory
@@ -463,17 +594,19 @@ int main() {
         std::cout << " 6. Update Stock\n";
         std::cout << " 7. Check Expiry\n";
         std::cout << " 8. Show Alerts\n";
-        std::cout << " 9. Save Inventory\n";
-        std::cout << "10. Read Storage Temperature\n";
-        std::cout << "11. Set Simulated Temperature\n";
-        std::cout << "12. Show Storage Condition\n";
-        std::cout << "13. Start Background Monitoring (fork/exec)\n";
-        std::cout << "14. Stop Background Monitoring (SIGTERM/waitpid)\n";
-        std::cout << "15. Show Monitoring Status (IPC/Pipe/Shm)\n";
-        std::cout << "16. Exit\n";
+        std::cout << " 9. Read Storage Temperature\n";
+        std::cout << "10. Set Simulated Temperature\n";
+        std::cout << "11. Show Storage Condition\n";
+        std::cout << "12. Start Monitoring\n";
+        std::cout << "13. Stop Monitoring\n";
+        std::cout << "14. Send Facility Update\n";
+        std::cout << "15. Analyze Redistribution\n";
+        std::cout << "16. Show System Health\n";
+        std::cout << "17. Show System Dashboard\n";
+        std::cout << "18. Exit\n";
         std::cout << "========================================\n";
 
-        int choice = readInt("Enter choice: ", 1, 16);
+        int choice = readInt("Enter choice (1-18): ", 1, 18);
 
         if (g_shutdownRequested) {
             break;
@@ -502,48 +635,60 @@ int main() {
                 handleCheckExpiry(inventory);
                 break;
             case 8:
-                AlertSystem::displayAlerts(inventory, ExpiryThresholds(), "", &monitor);
+                AlertSystem::displayAlerts(inventory, ExpiryThresholds(), "", &storageMonitor);
                 break;
             case 9:
-                if (inventory.saveToFile(DATA_FILE_PATH)) {
-                    std::cout << " [Success] Inventory saved to " << DATA_FILE_PATH << ".\n";
-                } else {
-                    std::cout << " [Error] Failed to write to " << DATA_FILE_PATH << ".\n";
-                }
+                handleReadStorageTemperature(tempMonitor);
                 break;
             case 10:
-                handleReadStorageTemperature(monitor, sensor);
+                handleSetSimulatedTemperature(tempMonitor);
                 break;
             case 11:
-                handleSetSimulatedTemperature(sensor, monitor);
+                handleShowStorageCondition(tempMonitor, inventory);
                 break;
             case 12:
-                handleShowStorageCondition(monitor, inventory);
+                if (threadedMonitor.start(5)) {
+                    networkManager.startServer();
+                    std::cout << " [Success] Background monitoring active (Sensor thread, Alert thread, TCP Server).\n";
+                } else {
+                    std::cout << " [Info] In-process threaded monitoring is already active.\n";
+                }
                 break;
             case 13:
-                processManager.startMonitor(5);
+                threadedMonitor.stop();
+                std::cout << " [Success] Background monitoring stopped.\n";
                 break;
             case 14:
-                processManager.stopMonitor();
+                handleSendFacilityUpdate(networkManager, redistributionEngine);
                 break;
             case 15:
-                processManager.printMonitoringStatus();
+                handleAnalyzeRedistribution(redistributionEngine, networkManager, inventory);
                 break;
             case 16:
+                handleShowSystemHealth(systemMonitor, sensor, threadedMonitor, networkManager);
+                break;
+            case 17:
+                handleShowSystemDashboard(systemMonitor, tempMonitor, inventory, redistributionEngine, networkManager, threadedMonitor, sensor);
+                break;
+            case 18:
                 running = false;
                 break;
             default:
-                std::cout << " [Error] Invalid choice. Please select an option between 1 and 16.\n";
+                std::cout << " [Error] Invalid choice. Please select an option between 1 and 18.\n";
                 break;
         }
     }
 
-    // Graceful process and IPC shutdown sequence
+    // Graceful process, thread, network, and IPC shutdown sequence
     std::cout << "\n========================================\n";
     std::cout << "Shutdown requested...\n";
-    std::cout << "Stopping monitor process...\n";
+    std::cout << "Stopping background monitoring threads...\n";
+    threadedMonitor.stop();
+    std::cout << "Stopping monitor processes...\n";
     processManager.stopMonitor();
-    std::cout << "Cleaning IPC resources...\n";
+    std::cout << "Stopping facility network services...\n";
+    networkManager.stopServer();
+    std::cout << "Saving inventory persistence file...\n";
     inventory.saveToFile(DATA_FILE_PATH);
     sensor.disconnect();
     std::cout << "MediSave Edge stopped safely.\n";
