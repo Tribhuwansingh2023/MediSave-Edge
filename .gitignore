@@ -1,0 +1,84 @@
+# ==============================================================================
+# MediSave Edge - .gitignore
+# A Linux-Based Medicine Storage Monitoring, Alert & Redistribution System
+# ==============================================================================
+
+# Compiled Object Files and Libraries
+*.o
+*.obj
+*.so
+*.a
+*.la
+*.lai
+*.dylib
+*.dll
+*.exe
+
+# Executables and Binaries
+bin/
+build/
+obj/
+*.out
+medisave_core
+medisave_server
+medisave_client
+medisave_monitor
+
+# Linux Kernel Module Build Artifacts
+driver/*.ko
+driver/*.mod
+driver/*.mod.c
+driver/*.mod.o
+driver/*.o
+driver/*.cmd
+driver/.*.cmd
+driver/*.order
+driver/*.symvers
+driver/.tmp_versions/
+driver/*.unsigned
+*.ko
+*.mod
+*.mod.c
+*.mod.o
+*.order
+*.symvers
+.tmp_versions/
+.*.cmd
+*.cmd
+.cache.mk
+
+# Core Dumps and Debug Files
+core
+core.*
+vgcore.*
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Logs and Runtime Data
+*.log
+*.tmp
+*.temp
+data/runtime/
+data/*.lock
+*.pid
+
+# Dependency Files
+*.d
+
+# Editor and IDE Metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.directory
+.project
+.cproject
+.settings/
+
+# OS-Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
