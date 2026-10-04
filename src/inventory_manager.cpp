@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 
 static std::string toLowerString(const std::string& str) {
     std::string lower = str;
@@ -72,6 +73,9 @@ std::vector<Medicine> InventoryManager::getAllMedicines() const {
     for (const auto& [id, med] : medicines) {
         list.push_back(med);
     }
+    std::sort(list.begin(), list.end(), [](const Medicine& a, const Medicine& b) {
+        return a.getId() < b.getId();
+    });
     return list;
 }
 
@@ -102,6 +106,9 @@ std::vector<Medicine> InventoryManager::getLowStockMedicines() const {
             results.push_back(med);
         }
     }
+    std::sort(results.begin(), results.end(), [](const Medicine& a, const Medicine& b) {
+        return a.getId() < b.getId();
+    });
     return results;
 }
 
@@ -113,6 +120,12 @@ std::vector<std::pair<Medicine, int>> InventoryManager::getExpiredMedicines(cons
             results.push_back({med, days});
         }
     }
+    std::sort(results.begin(), results.end(), [](const auto& a, const auto& b) {
+        if (a.second != b.second) {
+            return a.second < b.second; // most overdue (most negative) first
+        }
+        return a.first.getId() < b.first.getId();
+    });
     return results;
 }
 
@@ -124,6 +137,12 @@ std::vector<std::pair<Medicine, int>> InventoryManager::getExpiringSoonMedicines
             results.push_back({med, days});
         }
     }
+    std::sort(results.begin(), results.end(), [](const auto& a, const auto& b) {
+        if (a.second != b.second) {
+            return a.second < b.second; // soonest expiring (fewest days remaining) first
+        }
+        return a.first.getId() < b.first.getId();
+    });
     return results;
 }
 
@@ -153,20 +172,52 @@ bool InventoryManager::loadFromFile(const std::string& filepath) {
 }
 
 bool InventoryManager::saveToFile(const std::string& filepath) const {
-    std::ofstream outFile(filepath);
-    if (!outFile.is_open()) {
+    std::string tmpPath = filepath + ".tmp";
+    std::string bakPath = filepath + ".bak";
+
+    // 1. Write to temporary file
+    {
+        std::ofstream outFile(tmpPath, std::ios::out | std::ios::trunc);
+        if (!outFile.is_open()) {
+            return false;
+        }
+
+        outFile << "# ==============================================================================\n";
+        outFile << "# MediSave Edge Inventory Storage File\n";
+        outFile << "# Schema: ID|Name|Batch|Quantity|Expiry|MinStock|MaxStock|MinTemp|MaxTemp\n";
+        outFile << "# ==============================================================================\n";
+
+        std::vector<Medicine> sortedMeds = getAllMedicines();
+        for (const auto& med : sortedMeds) {
+            outFile << med.serialize() << "\n";
+        }
+
+        outFile.flush();
+        if (!outFile.good()) {
+            outFile.close();
+            std::error_code ec;
+            std::filesystem::remove(tmpPath, ec);
+            return false;
+        }
+        outFile.close();
+    }
+
+    // 2. If target file already exists, copy it to .bak
+    std::error_code ec;
+    if (std::filesystem::exists(filepath, ec)) {
+        std::filesystem::copy_file(filepath, bakPath, std::filesystem::copy_options::overwrite_existing, ec);
+    }
+
+    // 3. Atomically rename .tmp to destination file
+#if defined(_WIN32) || defined(_WIN64)
+    if (std::filesystem::exists(filepath, ec)) {
+        std::filesystem::remove(filepath, ec);
+    }
+#endif
+    std::filesystem::rename(tmpPath, filepath, ec);
+    if (ec) {
         return false;
     }
 
-    outFile << "# ==============================================================================\n";
-    outFile << "# MediSave Edge Inventory Storage File\n";
-    outFile << "# Schema: ID|Name|Batch|Quantity|Expiry|MinStock|MaxStock|MinTemp|MaxTemp\n";
-    outFile << "# ==============================================================================\n";
-
-    for (const auto& [id, med] : medicines) {
-        outFile << med.serialize() << "\n";
-    }
-
-    outFile.close();
     return true;
 }

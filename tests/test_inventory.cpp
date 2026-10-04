@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <string>
 #include <vector>
@@ -180,8 +181,94 @@ void testFilePersistence() {
     TEST_ASSERT(m1 != nullptr && m1->getName() == "Test Medicine A" && m1->getQuantity() == 100,
                 "Deserialized medicine attributes match original values");
 
-    // Cleanup temp file
+    // Re-save to test atomic backup creation
+    inv.addMedicine(Medicine("T-03", "Test Medicine C", "BATCH-3", 80, "2027-02-01", 15, 120, 15.0, 25.0));
+    inv.saveToFile(testFile);
+    TEST_ASSERT(std::ifstream(testFile + ".bak").good(), "Atomic saveToFile created backup .bak file");
+
+    // Cleanup temp files
     std::remove(testFile.c_str());
+    std::remove((testFile + ".bak").c_str());
+    std::remove((testFile + ".tmp").c_str());
+}
+
+void testPipeAndControlCharRejection() {
+    // 1. Name with pipe
+    bool caughtPipeName = false;
+    try {
+        Medicine m("MED-P1", "Para|cetamol", "B100", 50, "2027-01-01", 10, 100, 2.0, 8.0);
+    } catch (const std::invalid_argument&) {
+        caughtPipeName = true;
+    }
+    TEST_ASSERT(caughtPipeName, "Constructor rejects '|' in medicine name");
+
+    // 2. Name with control character
+    bool caughtCtrlName = false;
+    try {
+        Medicine m("MED-P2", "Para\ncetamol", "B100", 50, "2027-01-01", 10, 100, 2.0, 8.0);
+    } catch (const std::invalid_argument&) {
+        caughtCtrlName = true;
+    }
+    TEST_ASSERT(caughtCtrlName, "Constructor rejects control characters in medicine name");
+
+    // 3. Batch with pipe
+    bool caughtPipeBatch = false;
+    try {
+        Medicine m("MED-P3", "Paracetamol", "B|100", 50, "2027-01-01", 10, 100, 2.0, 8.0);
+    } catch (const std::invalid_argument&) {
+        caughtPipeBatch = true;
+    }
+    TEST_ASSERT(caughtPipeBatch, "Constructor rejects '|' in batch number");
+
+    // 4. Batch with control character
+    bool caughtCtrlBatch = false;
+    try {
+        Medicine m("MED-P4", "Paracetamol", "B\t100", 50, "2027-01-01", 10, 100, 2.0, 8.0);
+    } catch (const std::invalid_argument&) {
+        caughtCtrlBatch = true;
+    }
+    TEST_ASSERT(caughtCtrlBatch, "Constructor rejects control characters in batch number");
+
+    // 5. Setters reject pipe and control characters
+    Medicine validMed("MED-P5", "Aspirin", "B500", 50, "2027-01-01", 10, 100, 2.0, 8.0);
+    TEST_ASSERT(!validMed.setName("Aspirin|Extra"), "setName rejects '|'");
+    TEST_ASSERT(!validMed.setName("Aspirin\r\n"), "setName rejects control characters");
+    TEST_ASSERT(!validMed.setBatchNumber("B500|X"), "setBatchNumber rejects '|'");
+    TEST_ASSERT(!validMed.setBatchNumber("B500\x01"), "setBatchNumber rejects control characters");
+
+    // 6. Deserialization rejects malformed pipe count or pipe in tokens
+    Medicine outMed;
+    TEST_ASSERT(!Medicine::deserialize("ID|Name|Extra|Batch|10|2027-01-01|5|50|2.0|8.0", outMed),
+                "deserialize rejects line with extra pipe delimiters");
+}
+
+void testInventorySorting() {
+    InventoryManager inv;
+    inv.addMedicine(Medicine("MED-03", "C-Med", "B3", 5, "2026-09-01", 10, 100, 2.0, 8.0)); // low stock, expired (-30d)
+    inv.addMedicine(Medicine("MED-01", "A-Med", "B1", 2, "2026-09-20", 10, 100, 2.0, 8.0)); // low stock, expired (-11d)
+    inv.addMedicine(Medicine("MED-02", "B-Med", "B2", 50, "2026-10-05", 10, 100, 2.0, 8.0)); // safe stock, expiring soon (4d)
+    inv.addMedicine(Medicine("MED-04", "D-Med", "B4", 40, "2026-10-20", 10, 100, 2.0, 8.0)); // safe stock, expiring soon (19d)
+
+    // 1. getAllMedicines sorted by ID
+    auto all = inv.getAllMedicines();
+    TEST_ASSERT(all.size() == 4 && all[0].getId() == "MED-01" && all[1].getId() == "MED-02" &&
+                all[2].getId() == "MED-03" && all[3].getId() == "MED-04",
+                "getAllMedicines sorted alphabetically by ID");
+
+    // 2. getLowStockMedicines sorted by ID
+    auto low = inv.getLowStockMedicines();
+    TEST_ASSERT(low.size() == 2 && low[0].getId() == "MED-01" && low[1].getId() == "MED-03",
+                "getLowStockMedicines sorted alphabetically by ID");
+
+    // 3. getExpiredMedicines sorted by most overdue first
+    auto exp = inv.getExpiredMedicines("2026-10-01");
+    TEST_ASSERT(exp.size() == 2 && exp[0].first.getId() == "MED-03" && exp[1].first.getId() == "MED-01",
+                "getExpiredMedicines sorted by most overdue first");
+
+    // 4. getExpiringSoonMedicines sorted by soonest first
+    auto soon = inv.getExpiringSoonMedicines(30, "2026-10-01");
+    TEST_ASSERT(soon.size() == 2 && soon[0].first.getId() == "MED-02" && soon[1].first.getId() == "MED-04",
+                "getExpiringSoonMedicines sorted by soonest expiring first");
 }
 
 int main() {
@@ -197,6 +284,8 @@ int main() {
     testExpiryAndAlertCalculations();
     testInventoryAnalysisAndAlertQueue();
     testFilePersistence();
+    testPipeAndControlCharRejection();
+    testInventorySorting();
 
     std::cout << "\n========================================\n";
     std::cout << " TEST RESULTS: " << passedTests << " / " << totalTests << " PASSED\n";

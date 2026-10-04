@@ -78,8 +78,12 @@ int main(int argc, char* argv[]) {
 
     // Attach to existing IPC primitives
     IPCManager ipc;
-    ipc.openSharedMemory();
-    ipc.openSemaphore();
+    if (!ipc.openSharedMemory()) {
+        std::cerr << "[Monitor Worker Warning] Failed to open shared memory (" << MEDISAVE_SHM_NAME << ").\n";
+    }
+    if (!ipc.openSemaphore()) {
+        std::cerr << "[Monitor Worker Warning] Failed to open semaphore (" << MEDISAVE_SEM_NAME << ").\n";
+    }
 
     while (g_workerRunning) {
         double temp = 6.50; // Standard default cold chain baseline

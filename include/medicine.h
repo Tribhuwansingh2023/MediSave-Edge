@@ -70,6 +70,7 @@ public:
     // Static validators
     static bool isValidId(const std::string& id);
     static bool isValidName(const std::string& name);
+    static bool isValidBatchNumber(const std::string& batch);
     static bool isValidDate(const std::string& date);
     static bool isValidQuantity(int qty);
     static bool isValidStockBounds(int minS, int maxS);

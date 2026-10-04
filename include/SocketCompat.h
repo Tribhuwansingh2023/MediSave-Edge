@@ -12,6 +12,10 @@
 #include <netdb.h>
 #include <errno.h>
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
 using socket_t = int;
 constexpr socket_t INVALID_SOCKET_FD = -1;
 constexpr int SOCKET_ERROR_VAL = -1;
@@ -29,6 +33,19 @@ inline void shutdownSocket(socket_t s) {
     }
 }
 inline int getLastSocketError() { return errno; }
+
+inline void setSocketCloseOnExec(socket_t s) {
+#if defined(FD_CLOEXEC)
+    if (s >= 0) {
+        int flags = fcntl(s, F_GETFD);
+        if (flags != -1) {
+            fcntl(s, F_SETFD, flags | FD_CLOEXEC);
+        }
+    }
+#else
+    (void)s;
+#endif
+}
 
 #else
 
@@ -67,6 +84,14 @@ inline void shutdownSocket(socket_t s) {
 
 inline int getLastSocketError() {
     return WSAGetLastError();
+}
+
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
+inline void setSocketCloseOnExec(socket_t s) {
+    (void)s;
 }
 
 #endif

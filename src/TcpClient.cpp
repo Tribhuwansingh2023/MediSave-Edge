@@ -25,6 +25,19 @@ bool TcpClient::connectToServer() {
         return false;
     }
 
+    setSocketCloseOnExec(clientSocket);
+
+    // Set 5-second receive timeout
+#if defined(__linux__) || defined(__unix__)
+    struct timeval tv{};
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+    setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#else
+    DWORD timeoutMs = 5000;
+    setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
+#endif
+
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(static_cast<uint16_t>(serverPort));
@@ -65,7 +78,7 @@ bool TcpClient::sendRaw(const std::string& rawPayload, std::string& response) {
         }
     }
 
-    int bytesSent = send(clientSocket, rawPayload.c_str(), static_cast<int>(rawPayload.length()), 0);
+    int bytesSent = send(clientSocket, rawPayload.c_str(), static_cast<int>(rawPayload.length()), MSG_NOSIGNAL);
     if (bytesSent <= 0) {
         lastError = "Failed to transmit message over TCP socket.";
         disconnect();
@@ -94,6 +107,12 @@ bool TcpClient::sendRaw(const std::string& rawPayload, std::string& response) {
     }
 
     disconnect(); // Disconnect after transaction
+
+    if (response.rfind("ERR", 0) == 0) {
+        lastError = response;
+        return false;
+    }
+
     return true;
 }
 

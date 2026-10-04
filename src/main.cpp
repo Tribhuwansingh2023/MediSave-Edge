@@ -42,22 +42,45 @@ static void masterSignalHandler(int signum) {
 
 // Safe input helper functions
 static void clearCin() {
+    if (std::cin.eof()) {
+        g_shutdownRequested = 1;
+        return;
+    }
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
 
 static std::string readLine(const std::string& prompt) {
+    if (g_shutdownRequested || std::cin.eof()) {
+        g_shutdownRequested = 1;
+        return "";
+    }
     std::cout << prompt;
     std::string val;
-    std::getline(std::cin, val);
+    if (!std::getline(std::cin, val)) {
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+        }
+    }
     return val;
 }
 
 static std::string readNonEmptyString(const std::string& prompt) {
     while (!g_shutdownRequested) {
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+            return "";
+        }
         std::string s = readLine(prompt);
+        if (g_shutdownRequested) {
+            return "";
+        }
         if (!s.empty()) {
             return s;
+        }
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+            return "";
         }
         std::cout << " [Error] Input cannot be empty. Please try again.\n";
     }
@@ -66,6 +89,10 @@ static std::string readNonEmptyString(const std::string& prompt) {
 
 static int readInt(const std::string& prompt, int minVal = 0, int maxVal = 10000000) {
     while (!g_shutdownRequested) {
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+            return 18;
+        }
         std::cout << prompt;
         int val;
         if (std::cin >> val) {
@@ -75,7 +102,10 @@ static int readInt(const std::string& prompt, int minVal = 0, int maxVal = 10000
             }
             std::cout << " [Error] Value must be between " << minVal << " and " << maxVal << ".\n";
         } else {
-            if (g_shutdownRequested) return 18;
+            if (std::cin.eof() || g_shutdownRequested) {
+                g_shutdownRequested = 1;
+                return 18;
+            }
             std::cout << " [Error] Invalid integer input. Please try again.\n";
         }
         clearCin();
@@ -85,6 +115,10 @@ static int readInt(const std::string& prompt, int minVal = 0, int maxVal = 10000
 
 static double readDouble(const std::string& prompt, double minVal = -50.0, double maxVal = 100.0) {
     while (!g_shutdownRequested) {
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+            return 0.0;
+        }
         std::cout << prompt;
         double val;
         if (std::cin >> val) {
@@ -94,7 +128,10 @@ static double readDouble(const std::string& prompt, double minVal = -50.0, doubl
             }
             std::cout << " [Error] Value must be between " << minVal << " and " << maxVal << ".\n";
         } else {
-            if (g_shutdownRequested) return 0.0;
+            if (std::cin.eof() || g_shutdownRequested) {
+                g_shutdownRequested = 1;
+                return 0.0;
+            }
             std::cout << " [Error] Invalid numeric input. Please try again.\n";
         }
         clearCin();
@@ -104,7 +141,14 @@ static double readDouble(const std::string& prompt, double minVal = -50.0, doubl
 
 static std::string readDate(const std::string& prompt) {
     while (!g_shutdownRequested) {
+        if (std::cin.eof()) {
+            g_shutdownRequested = 1;
+            return "2099-12-31";
+        }
         std::string date = readNonEmptyString(prompt);
+        if (g_shutdownRequested) {
+            return "2099-12-31";
+        }
         if (Medicine::isValidDate(date)) {
             return date;
         }
@@ -161,6 +205,7 @@ static void displayInventoryTable(const std::vector<Medicine>& meds) {
 static void handleAddMedicine(InventoryManager& inv) {
     std::cout << "\n--- Add New Medicine ---\n";
     std::string id = readNonEmptyString("Enter Medicine ID (e.g. MED-001): ");
+    if (g_shutdownRequested) return;
     if (!Medicine::isValidId(id)) {
         std::cout << " [Error] ID must contain only alphanumeric characters, '-', or '_'.\n";
         return;
@@ -171,13 +216,29 @@ static void handleAddMedicine(InventoryManager& inv) {
     }
 
     std::string name = readNonEmptyString("Enter Medicine Name: ");
+    if (g_shutdownRequested) return;
+    if (!Medicine::isValidName(name)) {
+        std::cout << " [Error] Medicine name cannot be empty or contain '|' or control characters.\n";
+        return;
+    }
     std::string batch = readNonEmptyString("Enter Batch Number: ");
+    if (g_shutdownRequested) return;
+    if (!Medicine::isValidBatchNumber(batch)) {
+        std::cout << " [Error] Batch number cannot be empty or contain '|' or control characters.\n";
+        return;
+    }
     int qty = readInt("Enter Initial Quantity: ", 0, 1000000);
+    if (g_shutdownRequested) return;
     std::string expiry = readDate("Enter Expiry Date (YYYY-MM-DD): ");
+    if (g_shutdownRequested) return;
     int minStock = readInt("Enter Minimum Required Stock: ", 0, 1000000);
+    if (g_shutdownRequested) return;
     int maxStock = readInt("Enter Maximum Stock Capacity: ", minStock, 1000000);
+    if (g_shutdownRequested) return;
     double minTemp = readDouble("Enter Minimum Storage Temperature (°C): ", -30.0, 50.0);
+    if (g_shutdownRequested) return;
     double maxTemp = readDouble("Enter Maximum Storage Temperature (°C): ", minTemp, 50.0);
+    if (g_shutdownRequested) return;
 
     try {
         Medicine med(id, name, batch, qty, expiry, minStock, maxStock, minTemp, maxTemp);
@@ -195,6 +256,7 @@ static void handleAddMedicine(InventoryManager& inv) {
 static void handleRemoveMedicine(InventoryManager& inv) {
     std::cout << "\n--- Remove Medicine ---\n";
     std::string id = readNonEmptyString("Enter Medicine ID to remove: ");
+    if (g_shutdownRequested) return;
     const Medicine* med = inv.findMedicineById(id);
     if (!med) {
         std::cout << " [Error] Medicine ID '" << id << "' not found.\n";
@@ -216,6 +278,7 @@ static void handleRemoveMedicine(InventoryManager& inv) {
 static void handleUpdateMedicine(InventoryManager& inv) {
     std::cout << "\n--- Update Medicine Details ---\n";
     std::string id = readNonEmptyString("Enter Medicine ID to update: ");
+    if (g_shutdownRequested) return;
     Medicine* med = inv.findMedicineById(id);
     if (!med) {
         std::cout << " [Error] Medicine ID '" << id << "' not found.\n";
@@ -225,34 +288,82 @@ static void handleUpdateMedicine(InventoryManager& inv) {
     std::cout << "\nUpdating [" << med->getId() << "] " << med->getName() << "\n";
     std::cout << "Leave blank to keep existing value.\n";
 
+    bool anyUpdated = false;
+    bool updateFailed = false;
+
     std::string newName = readLine("New Name [" + med->getName() + "]: ");
-    if (!newName.empty()) med->setName(newName);
+    if (g_shutdownRequested) return;
+    if (!newName.empty()) {
+        if (!med->setName(newName)) {
+            std::cout << " [Error] Invalid medicine name (cannot contain '|' or control characters).\n";
+            updateFailed = true;
+        } else {
+            anyUpdated = true;
+        }
+    }
 
     std::string newBatch = readLine("New Batch [" + med->getBatchNumber() + "]: ");
-    if (!newBatch.empty()) med->setBatchNumber(newBatch);
+    if (g_shutdownRequested) return;
+    if (!newBatch.empty()) {
+        if (!med->setBatchNumber(newBatch)) {
+            std::cout << " [Error] Invalid batch number (cannot contain '|' or control characters).\n";
+            updateFailed = true;
+        } else {
+            anyUpdated = true;
+        }
+    }
 
     std::string dateChoice = readLine("Update Expiry Date? (y/N): ");
+    if (g_shutdownRequested) return;
     if (dateChoice == "y" || dateChoice == "Y") {
         std::string newExp = readDate("New Expiry Date (YYYY-MM-DD): ");
-        med->setExpiryDate(newExp);
+        if (g_shutdownRequested) return;
+        if (!med->setExpiryDate(newExp)) {
+            std::cout << " [Error] Invalid expiry date.\n";
+            updateFailed = true;
+        } else {
+            anyUpdated = true;
+        }
     }
 
     std::string boundsChoice = readLine("Update Stock Bounds? (y/N): ");
+    if (g_shutdownRequested) return;
     if (boundsChoice == "y" || boundsChoice == "Y") {
         int minS = readInt("New Min Stock: ", 0, 1000000);
+        if (g_shutdownRequested) return;
         int maxS = readInt("New Max Stock: ", minS, 1000000);
-        med->setStockBounds(minS, maxS);
+        if (g_shutdownRequested) return;
+        if (!med->setStockBounds(minS, maxS)) {
+            std::cout << " [Error] Invalid stock bounds.\n";
+            updateFailed = true;
+        } else {
+            anyUpdated = true;
+        }
     }
 
     std::string tempChoice = readLine("Update Temperature Bounds? (y/N): ");
+    if (g_shutdownRequested) return;
     if (tempChoice == "y" || tempChoice == "Y") {
         double minT = readDouble("New Min Temp (°C): ", -30.0, 50.0);
+        if (g_shutdownRequested) return;
         double maxT = readDouble("New Max Temp (°C): ", minT, 50.0);
-        med->setTemperatureBounds(minT, maxT);
+        if (g_shutdownRequested) return;
+        if (!med->setTemperatureBounds(minT, maxT)) {
+            std::cout << " [Error] Invalid temperature bounds.\n";
+            updateFailed = true;
+        } else {
+            anyUpdated = true;
+        }
     }
 
-    inv.saveToFile(DATA_FILE_PATH);
-    std::cout << " [Success] Medicine details updated.\n";
+    if (updateFailed) {
+        std::cout << " [Error] Medicine update encountered errors; failed fields were not changed.\n";
+    } else if (anyUpdated) {
+        inv.saveToFile(DATA_FILE_PATH);
+        std::cout << " [Success] Medicine details updated.\n";
+    } else {
+        std::cout << " [Notice] No changes made.\n";
+    }
 }
 
 static void handleSearchMedicine(const InventoryManager& inv) {
@@ -488,7 +599,7 @@ static void handleShowSystemHealth(const SystemMonitor& sysMon, DeviceSensor& se
 static void handleShowSystemDashboard(const SystemMonitor& sysMon, TemperatureMonitor& tempMon,
                                       const InventoryManager& inv, RedistributionEngine& redistEngine,
                                       NetworkManager& net, ThreadedMonitor& threadedMon, DeviceSensor& sensor) {
-    tempMon.updateReading();
+    bool readingOk = tempMon.updateReading();
     TemperatureReading r = tempMon.getLatestReading();
 
     // Refresh redistribution data
@@ -512,8 +623,9 @@ static void handleShowSystemDashboard(const SystemMonitor& sysMon, TemperatureMo
     auto lowStockMeds = inv.getLowStockMedicines();
 
     DashboardSnapshot snap;
+    snap.temperatureValid = readingOk && r.valid && sensor.isConnected();
     snap.temperature = r.temperature;
-    snap.storageStatus = r.status;
+    snap.storageStatus = (readingOk && r.valid) ? r.status : "UNAVAILABLE";
 
     snap.totalMedicines = static_cast<int>(inv.getMedicineCount());
     snap.lowStockCount = static_cast<int>(lowStockMeds.size());
@@ -647,14 +759,16 @@ int main() {
                 handleShowStorageCondition(tempMonitor, inventory);
                 break;
             case 12:
+                processManager.startMonitor();
                 if (threadedMonitor.start(5)) {
                     networkManager.startServer();
-                    std::cout << " [Success] Background monitoring active (Sensor thread, Alert thread, TCP Server).\n";
+                    std::cout << " [Success] Background monitoring active (Process monitor, Sensor thread, Alert thread, TCP Server).\n";
                 } else {
                     std::cout << " [Info] In-process threaded monitoring is already active.\n";
                 }
                 break;
             case 13:
+                processManager.stopMonitor();
                 threadedMonitor.stop();
                 std::cout << " [Success] Background monitoring stopped.\n";
                 break;

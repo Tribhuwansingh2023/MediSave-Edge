@@ -2,6 +2,7 @@
 #define DEVICE_SENSOR_H
 
 #include <string>
+#include <mutex>
 
 /**
  * @class DeviceSensor
@@ -9,7 +10,7 @@
  *
  * Encapsulates low-level Linux POSIX system calls (open, read, write, ioctl, close)
  * to communicate with the MediSave Edge kernel character device driver.
- * Designed to be thread-safe ready with isolated per-instance descriptor state.
+ * Thread-safe with recursive mutex protection for concurrent access.
  */
 class DeviceSensor {
 private:
@@ -17,6 +18,7 @@ private:
     int fileDescriptor;
     bool connected;
     std::string lastError;
+    mutable std::recursive_mutex sensorMutex;
 
 public:
     // Constructors & Destructor

@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <limits>
+#include <cstdint>
 
 constexpr int DEFAULT_TCP_PORT = 5000;
 constexpr const char* DEFAULT_TCP_HOST = "127.0.0.1";
@@ -40,16 +42,30 @@ inline std::string serializeFacilityMessage(const FacilityMessage& msg) {
  * @brief Parses an incoming pipe-delimited message payload.
  *
  * Validates:
- * - Exactly 5 fields: FACILITY|MEDICINE|BATCH|QUANTITY|TYPE
+ * - Exactly 4 '|' delimiters (exactly 5 fields: FACILITY|MEDICINE|BATCH|QUANTITY|TYPE)
  * - Facility must not be empty
  * - Medicine must not be empty
  * - Batch must not be empty
- * - Quantity must be numeric and > 0
+ * - Quantity must be numeric, > 0, and <= INT_MAX (no overflow)
  * - Type must be either "SURPLUS" or "SHORTAGE"
  */
 inline bool parseFacilityMessage(const std::string& raw, FacilityMessage& msg, std::string* errorReason = nullptr) {
     if (raw.empty()) {
         if (errorReason) *errorReason = "Empty payload";
+        return false;
+    }
+
+    // Require exactly 4 pipe delimiters (rejects trailing '|' and missing/extra fields)
+    int pipeCount = 0;
+    for (char c : raw) {
+        if (c == '|') {
+            pipeCount++;
+        }
+    }
+    if (pipeCount != 4) {
+        if (errorReason) {
+            *errorReason = (pipeCount < 4) ? "Missing fields" : "Extra fields";
+        }
         return false;
     }
 
@@ -111,9 +127,9 @@ inline bool parseFacilityMessage(const std::string& raw, FacilityMessage& msg, s
         }
     }
 
-    long parsedQty = 0;
+    long long parsedQty = 0;
     try {
-        parsedQty = std::stol(tokens[3]);
+        parsedQty = std::stoll(tokens[3]);
     } catch (...) {
         if (errorReason) *errorReason = "Quantity conversion failure";
         return false;
@@ -121,6 +137,11 @@ inline bool parseFacilityMessage(const std::string& raw, FacilityMessage& msg, s
 
     if (parsedQty <= 0) {
         if (errorReason) *errorReason = "Quantity must be greater than 0";
+        return false;
+    }
+
+    if (parsedQty > static_cast<long long>(std::numeric_limits<int>::max())) {
+        if (errorReason) *errorReason = "Quantity exceeds maximum allowable limit";
         return false;
     }
 

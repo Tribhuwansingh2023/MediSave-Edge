@@ -42,6 +42,7 @@ struct ServiceStatus {
 struct DashboardSnapshot {
     // Storage
     double temperature{6.50};
+    bool temperatureValid{false};
     std::string storageStatus{"NORMAL"};
 
     // Inventory

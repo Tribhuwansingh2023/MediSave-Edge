@@ -24,6 +24,7 @@ bool TcpServer::start() {
         std::cerr << "[TcpServer Error] socket() creation failed: " << getLastSocketError() << "\n";
         return false;
     }
+    setSocketCloseOnExec(serverSocket);
 
     // Set SO_REUSEADDR so port can be immediately rebound on restart
     int opt = 1;
@@ -51,7 +52,7 @@ bool TcpServer::start() {
         return false;
     }
 
-    if (listen(serverSocket, 16) == SOCKET_ERROR_VAL) {
+    if (listen(serverSocket, 128) == SOCKET_ERROR_VAL) {
         std::cerr << "[TcpServer Error] listen() failed: " << getLastSocketError() << "\n";
         closeSocketFd(serverSocket);
         serverSocket = INVALID_SOCKET_FD;
@@ -99,15 +100,15 @@ void TcpServer::stop() {
     }
 
     {
-        std::lock_guard<std::mutex> lock(threadsMutex);
-        for (auto& th : clientThreads) {
-            if (th.joinable()) {
-                if (std::this_thread::get_id() != th.get_id()) {
-                    th.join();
+        std::lock_guard<std::mutex> lock(sessionsMutex);
+        for (auto& session : clientSessions) {
+            if (session.th.joinable()) {
+                if (std::this_thread::get_id() != session.th.get_id()) {
+                    session.th.join();
                 }
             }
         }
-        clientThreads.clear();
+        clientSessions.clear();
     }
 }
 
@@ -123,12 +124,28 @@ std::string TcpServer::getHost() const {
     return host;
 }
 
+void TcpServer::pruneFinishedThreads() {
+    std::lock_guard<std::mutex> lock(sessionsMutex);
+    for (auto it = clientSessions.begin(); it != clientSessions.end(); ) {
+        if (it->finished && it->finished->load()) {
+            if (it->th.joinable()) {
+                it->th.join();
+            }
+            it = clientSessions.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void TcpServer::acceptLoop() {
     while (running.load()) {
         socket_t sock = serverSocket.load();
         if (sock == INVALID_SOCKET_FD) {
             break;
         }
+
+        pruneFinishedThreads();
 
         // Use select with a short 100ms timeout to avoid indefinite blocking in accept()
         fd_set readFds;
@@ -161,17 +178,32 @@ void TcpServer::acceptLoop() {
                 continue;
             }
 
+            setSocketCloseOnExec(clientSock);
+
+            // Cap concurrent clients (e.g. 256)
+            if (activeClients.load() >= MAX_CONCURRENT_CLIENTS) {
+                std::string err = "ERR|Server busy: connection cap reached\n";
+                send(clientSock, err.c_str(), static_cast<int>(err.length()), MSG_NOSIGNAL);
+                closeSocketFd(clientSock);
+                continue;
+            }
+
             std::string clientIp = inet_ntoa(clientAddr.sin_addr);
+            auto finishedFlag = std::make_shared<std::atomic<bool>>(false);
+            activeClients++;
 
             {
-                std::lock_guard<std::mutex> lock(threadsMutex);
-                clientThreads.emplace_back(&TcpServer::handleClient, this, clientSock, clientIp);
+                std::lock_guard<std::mutex> lock(sessionsMutex);
+                clientSessions.push_back({
+                    std::thread(&TcpServer::handleClient, this, clientSock, clientIp, finishedFlag),
+                    finishedFlag
+                });
             }
         }
     }
 }
 
-void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
+void TcpServer::handleClient(socket_t clientSock, std::string clientIp, std::shared_ptr<std::atomic<bool>> finished) {
     (void)clientIp;
 
     // Set 2-second receive timeout to prevent hung client threads
@@ -185,14 +217,24 @@ void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
     setsockopt(clientSock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeoutMs, sizeof(timeoutMs));
 #endif
 
-    char buffer[1024];
-    std::memset(buffer, 0, sizeof(buffer));
+    std::string rawMessage;
+    char buffer[256];
 
-    int bytesRead = recv(clientSock, buffer, sizeof(buffer) - 1, 0);
-    if (bytesRead > 0) {
+    // Read until '\n' instead of a single recv() (handles split TCP messages)
+    while (running.load() && rawMessage.length() < 4096) {
+        int bytesRead = recv(clientSock, buffer, sizeof(buffer) - 1, 0);
+        if (bytesRead <= 0) {
+            break;
+        }
         buffer[bytesRead] = '\0';
-        std::string rawMessage(buffer);
+        rawMessage.append(buffer, bytesRead);
 
+        if (rawMessage.find('\n') != std::string::npos) {
+            break;
+        }
+    }
+
+    if (!rawMessage.empty()) {
         FacilityMessage msg;
         std::string errorReason;
         if (parseFacilityMessage(rawMessage, msg, &errorReason)) {
@@ -203,22 +245,28 @@ void TcpServer::handleClient(socket_t clientSock, std::string clientIp) {
             std::cout << "Quantity: " << msg.quantity << "\n";
             std::cout << "Type: " << msg.type << "\n";
 
-            // Store message into in-memory queue
+            // Store message into in-memory queue (capped at MAX_STORED_MESSAGES)
             {
                 std::lock_guard<std::mutex> lock(messagesMutex);
-                receivedMessages.push_back(msg);
+                if (receivedMessages.size() < MAX_STORED_MESSAGES) {
+                    receivedMessages.push_back(msg);
+                }
             }
 
-            // Respond with ACK
+            // Respond with ACK using MSG_NOSIGNAL
             std::string ack = createAckResponse(msg.facility);
-            send(clientSock, ack.c_str(), static_cast<int>(ack.length()), 0);
+            send(clientSock, ack.c_str(), static_cast<int>(ack.length()), MSG_NOSIGNAL);
         } else {
             std::string err = "ERR|" + errorReason + "\n";
-            send(clientSock, err.c_str(), static_cast<int>(err.length()), 0);
+            send(clientSock, err.c_str(), static_cast<int>(err.length()), MSG_NOSIGNAL);
         }
     }
 
     closeSocketFd(clientSock);
+    activeClients--;
+    if (finished) {
+        finished->store(true);
+    }
 }
 
 std::vector<FacilityMessage> TcpServer::getReceivedMessages() const {

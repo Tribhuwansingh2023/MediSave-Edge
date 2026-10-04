@@ -6,6 +6,7 @@
 #include <chrono>
 #include <thread>
 #include <cassert>
+#include <cstring>
 
 static bool runMessageValidationTests() {
     bool passed = true;
@@ -94,6 +95,22 @@ static bool runMessageValidationTests() {
         passed = false;
     }
 
+    // 11. Trailing delimiter '|'
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|150|SURPLUS|", msg, &err)) {
+        std::cout << "[PASS] Reject trailing delimiter '|'\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject trailing delimiter '|'\n";
+        passed = false;
+    }
+
+    // 12. Quantity overflow (> INT_MAX)
+    if (!parseFacilityMessage("Facility-A|Paracetamol|P2026A|4294967296|SURPLUS", msg, &err)) {
+        std::cout << "[PASS] Reject quantity exceeding INT_MAX\n";
+    } else {
+        std::cout << "[FAIL] Failed to reject quantity exceeding INT_MAX\n";
+        passed = false;
+    }
+
     return passed;
 }
 
@@ -160,7 +177,77 @@ int main() {
         allPassed = false;
     }
 
-    // 6. Server shutdown (Interruption of accept loop and clean thread termination)
+    // 6. Split message transmission and reading until '\n'
+    {
+        socket_t splitSock = socket(AF_INET, SOCK_STREAM, 0);
+        sockaddr_in sAddr{};
+        sAddr.sin_family = AF_INET;
+        sAddr.sin_port = htons(static_cast<uint16_t>(testPort));
+        sAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+        if (connect(splitSock, reinterpret_cast<sockaddr*>(&sAddr), sizeof(sAddr)) != SOCKET_ERROR_VAL) {
+            std::string part1 = "Facility-Split|Aspirin|";
+            std::string part2 = "B-SPLIT|40|SHORTAGE\n";
+            send(splitSock, part1.c_str(), static_cast<int>(part1.length()), MSG_NOSIGNAL);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            send(splitSock, part2.c_str(), static_cast<int>(part2.length()), MSG_NOSIGNAL);
+
+            char buf[256];
+            std::memset(buf, 0, sizeof(buf));
+            int n = recv(splitSock, buf, sizeof(buf) - 1, 0);
+            if (n > 0) {
+                buf[n] = '\0';
+                if (std::string(buf).find("ACK|Facility-Split") != std::string::npos) {
+                    std::cout << "[PASS] TCP split message transmission and assembly\n";
+                } else {
+                    std::cout << "[FAIL] TCP split message unexpected response: " << buf << "\n";
+                    allPassed = false;
+                }
+            } else {
+                std::cout << "[FAIL] TCP split message recv failed\n";
+                allPassed = false;
+            }
+            closeSocketFd(splitSock);
+        } else {
+            std::cout << "[FAIL] TCP split message connection failed\n";
+            allPassed = false;
+        }
+    }
+
+    // 7. Error response handling (ERR message must trigger failure in client)
+    {
+        TcpClient errClient("127.0.0.1", testPort);
+        std::string errResp;
+        bool res = errClient.sendRaw("BAD|PAYLOAD\n", errResp);
+        if (!res && errResp.find("ERR") != std::string::npos) {
+            std::cout << "[PASS] Client correctly treats ERR response as failure\n";
+        } else {
+            std::cout << "[FAIL] Client failed to treat ERR as failure\n";
+            allPassed = false;
+        }
+    }
+
+    // 8. High connection count test (verifying thread joining and no descriptor exhaustion)
+    {
+        bool manyConnOk = true;
+        for (int i = 0; i < 300; ++i) {
+            TcpClient c("127.0.0.1", testPort);
+            FacilityMessage m{"Facility-Stress", "Med-" + std::to_string(i), "B1", 10, "SURPLUS"};
+            std::string ack;
+            if (!c.sendFacilityUpdate(m, ack)) {
+                manyConnOk = false;
+                break;
+            }
+        }
+        if (manyConnOk) {
+            std::cout << "[PASS] Handled 300 sequential client connections with finished threads joined\n";
+        } else {
+            std::cout << "[FAIL] High connection count test failed\n";
+            allPassed = false;
+        }
+    }
+
+    // 9. Server shutdown (Interruption of accept loop and clean thread termination)
     server.stop();
     if (!server.isRunning()) {
         std::cout << "[PASS] Server shutdown\n";

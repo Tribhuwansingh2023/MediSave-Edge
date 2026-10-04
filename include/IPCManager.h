@@ -51,6 +51,7 @@ public:
     void closeWriteEnd();
     bool writeToPipe(const std::string& message);
     bool readFromPipe(std::string& message, bool nonBlocking = true);
+    bool readRawFromPipe(std::string& rawData, bool nonBlocking = true);
 
     // --- POSIX Shared Memory Primitives ---
     bool createSharedMemory();

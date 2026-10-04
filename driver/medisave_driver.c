@@ -1,4 +1,4 @@
-/**
+/*
  * @file medisave_driver.c
  * @brief MediSave Edge Linux Character Device Driver
  *
@@ -46,7 +46,7 @@ static DEFINE_MUTEX(medisave_mutex);
 /* Rule: No floating-point arithmetic inside Linux Kernel space */
 static int current_temp_milli = 6500; // Default 6.50 °C (Standard cold chain: 2°C to 8°C)
 
-/**
+/*
  * @brief Evaluates status string based on milli-Celsius temperature.
  * Thresholds:
  *   < 2000 mC (< 2.0 °C)     : LOW
@@ -67,7 +67,7 @@ static const char* get_temperature_status(int temp_milli)
     }
 }
 
-/**
+/*
  * @brief Helper to parse fixed-point ASCII temperature string (e.g., "11.20", "6.5", "-3.5")
  * into signed milli-Celsius integer without floating-point math.
  *
@@ -268,8 +268,9 @@ static ssize_t medisave_write(struct file *filep, const char __user *user_buf,
         status = get_temperature_status(current_temp_milli);
         mutex_unlock(&medisave_mutex);
 
-        pr_info("medisave: Simulated temperature updated to %d.%02d C (Status: %s)\n",
-                parsed_milli / 1000,
+        pr_info("medisave: Simulated temperature updated to %s%d.%02d C (Status: %s)\n",
+                (parsed_milli < 0 ? "-" : ""),
+                abs(parsed_milli / 1000),
                 abs((parsed_milli % 1000) / 10),
                 status);
         return count;
@@ -297,11 +298,16 @@ static long medisave_ioctl(struct file *filep, unsigned int cmd, unsigned long a
         if (copy_from_user(&temp_milli, (int __user *)arg, sizeof(int))) {
             return -EFAULT;
         }
+        if (temp_milli < -50000 || temp_milli > 100000) {
+            return -ERANGE;
+        }
         mutex_lock(&medisave_mutex);
         current_temp_milli = temp_milli;
         mutex_unlock(&medisave_mutex);
-        pr_info("medisave: IOCTL set temperature -> %d.%02d C\n",
-                temp_milli / 1000, abs((temp_milli % 1000) / 10));
+        pr_info("medisave: IOCTL set temperature -> %s%d.%02d C\n",
+                (temp_milli < 0 ? "-" : ""),
+                abs(temp_milli / 1000),
+                abs((temp_milli % 1000) / 10));
         break;
 
     case MEDISAVE_IOC_GET_TEMP:
@@ -315,8 +321,7 @@ static long medisave_ioctl(struct file *filep, unsigned int cmd, unsigned long a
 
     case MEDISAVE_IOC_GET_STATUS:
         mutex_lock(&medisave_mutex);
-        strncpy(status_buf, get_temperature_status(current_temp_milli), sizeof(status_buf) - 1);
-        status_buf[sizeof(status_buf) - 1] = '\0';
+        strscpy(status_buf, get_temperature_status(current_temp_milli), sizeof(status_buf));
         mutex_unlock(&medisave_mutex);
         if (copy_to_user((char __user *)arg, status_buf, sizeof(status_buf))) {
             return -EFAULT;
@@ -326,8 +331,7 @@ static long medisave_ioctl(struct file *filep, unsigned int cmd, unsigned long a
     case MEDISAVE_IOC_GET_DATA:
         mutex_lock(&medisave_mutex);
         data.temperature_milli = current_temp_milli;
-        strncpy(data.status, get_temperature_status(current_temp_milli), sizeof(data.status) - 1);
-        data.status[sizeof(data.status) - 1] = '\0';
+        strscpy(data.status, get_temperature_status(current_temp_milli), sizeof(data.status));
         mutex_unlock(&medisave_mutex);
         if (copy_to_user((struct medisave_ioctl_data __user *)arg, &data, sizeof(data))) {
             return -EFAULT;

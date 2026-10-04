@@ -182,11 +182,23 @@ IPCManager& ProcessManager::getIPCManager() {
 }
 
 bool ProcessManager::pollPipeUpdate(std::string& outMessage) {
-    std::string msg;
-    if (ipc.readFromPipe(msg, true)) {
-        latestPipeMessage = msg;
-        outMessage = msg;
-        return true;
+    std::string raw;
+    if (ipc.readRawFromPipe(raw, true)) {
+        size_t lastNl = raw.find_last_of("\n");
+        if (lastNl != std::string::npos) {
+            size_t prevNl = raw.find_last_of("\n", lastNl > 0 ? lastNl - 1 : 0);
+            size_t start = (prevNl == std::string::npos) ? 0 : prevNl + 1;
+            std::string line = raw.substr(start, lastNl - start);
+            size_t end = line.find_last_not_of("\r\n");
+            if (end != std::string::npos) {
+                line = line.substr(0, end + 1);
+            }
+            if (!line.empty()) {
+                latestPipeMessage = line;
+                outMessage = line;
+                return true;
+            }
+        }
     }
     outMessage = latestPipeMessage;
     return false;

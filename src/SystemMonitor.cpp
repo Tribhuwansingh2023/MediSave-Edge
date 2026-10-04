@@ -302,7 +302,11 @@ void SystemMonitor::displaySystemDashboard(const DashboardSnapshot& data) {
     std::cout << "=============================================\n\n";
 
     std::cout << "STORAGE\n";
-    std::cout << "Temperature : " << std::fixed << std::setprecision(2) << data.temperature << " C\n";
+    if (data.temperatureValid) {
+        std::cout << "Temperature : " << std::fixed << std::setprecision(2) << data.temperature << " C\n";
+    } else {
+        std::cout << "Temperature : N/A (sensor unavailable)\n";
+    }
     std::cout << "Status      : " << data.storageStatus << "\n\n";
 
     std::cout << "INVENTORY\n";

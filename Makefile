@@ -11,8 +11,10 @@ UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
 LDFLAGS := -pthread
 ifeq ($(UNAME_S),Linux)
     LDFLAGS += -lrt
+    SIGN :=
 else
     LDFLAGS += -lws2_32
+    SIGN := powershell.exe -ExecutionPolicy Bypass -File tests/sign.ps1
 endif
 
 SRC_DIR    := src
@@ -57,7 +59,7 @@ SYS_TEST_BIN     := $(BIN_DIR)/system_monitor_test
 
 .PHONY: all run test clean distclean help dirs driver driver-clean \
         ipc-test process-test driver-test thread-test tcp-test \
-        redistribution-test system-monitor-test
+        redistribution-test system-monitor-test cli-regress
 
 all: dirs $(APP_BIN) $(SERVER_BIN) $(CLIENT_BIN) $(WORKER_BIN) \
      $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) $(TEST_BIN) $(SENSOR_TEST_BIN) \
@@ -72,68 +74,81 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | dirs
 
 # Main MediSave Edge CLI Executable
 $(APP_BIN): $(CORE_OBJS) $(SRC_DIR)/main.cpp | dirs
-	$(CXX) -Wall -Wextra -O1 -g -std=c++17 -pthread $(INCLUDES) $^ $(LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Main application successfully compiled: $(APP_BIN)
 
 # Standalone MediSave TCP Server Binary (Facility Simulation Hub)
 $(SERVER_BIN): $(SRC_DIR)/medisave_server.cpp $(BUILD_DIR)/TcpServer.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] MediSave TCP Server successfully compiled: $(SERVER_BIN)
 
 # Standalone MediSave TCP Client Binary (Facility Client)
 $(CLIENT_BIN): $(SRC_DIR)/medisave_client.cpp $(BUILD_DIR)/TcpClient.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] MediSave TCP Client successfully compiled: $(CLIENT_BIN)
 
 # Monitor Worker Process Executable (fork/exec target)
 $(WORKER_BIN): $(SRC_DIR)/monitor_worker.cpp $(BUILD_DIR)/DeviceSensor.o $(BUILD_DIR)/StorageMonitor.o $(BUILD_DIR)/IPCManager.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Monitor worker successfully compiled: $(WORKER_BIN)
 
 # Task 2 Inventory Unit Tests
 $(TEST_BIN): $(BUILD_DIR)/medicine.o $(BUILD_DIR)/inventory_manager.o $(BUILD_DIR)/expiry_utils.o $(BUILD_DIR)/alert_system.o $(BUILD_DIR)/DeviceSensor.o $(BUILD_DIR)/StorageMonitor.o $(TESTS_DIR)/test_inventory.cpp | dirs
-	$(CXX) -Wall -Wextra -O1 -g -std=c++17 -pthread $(INCLUDES) $^ $(LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Inventory test runner successfully compiled: $(TEST_BIN)
 
 # Task 4 Device Sensor Integration Tests
 $(SENSOR_TEST_BIN): $(BUILD_DIR)/DeviceSensor.o $(BUILD_DIR)/StorageMonitor.o $(TESTS_DIR)/device_sensor_test.cpp | dirs
-	$(CXX) -Wall -Wextra -O1 -g -std=c++17 -pthread $(INCLUDES) $^ $(LDFLAGS) -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Device sensor test successfully compiled: $(SENSOR_TEST_BIN)
 
 # Task 5 IPC Test Program
 $(IPC_TEST_BIN): $(TESTS_DIR)/ipc_test.cpp $(BUILD_DIR)/IPCManager.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] IPC test successfully compiled: $(IPC_TEST_BIN)
 
 # Task 5 Process Lifecycle Test Program
 $(PROCESS_TEST_BIN): $(TESTS_DIR)/process_test.cpp | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Process test successfully compiled: $(PROCESS_TEST_BIN)
 
 # Task 3/4 Direct Driver Test Program
 $(DRIVER_TEST_BIN): $(BUILD_DIR)/DeviceSensor.o $(TESTS_DIR)/driver_test.cpp | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Driver test successfully compiled: $(DRIVER_TEST_BIN)
 
 # Task 6 Multithreading Test Program
 $(THREAD_TEST_BIN): $(TESTS_DIR)/thread_test.cpp $(BUILD_DIR)/ThreadedMonitor.o \
                     $(BUILD_DIR)/DeviceSensor.o $(BUILD_DIR)/StorageMonitor.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Thread test successfully compiled: $(THREAD_TEST_BIN)
 
 # Task 6 TCP Client/Server Test Program
 $(TCP_TEST_BIN): $(TESTS_DIR)/tcp_test.cpp $(BUILD_DIR)/TcpServer.o $(BUILD_DIR)/TcpClient.o | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] TCP test successfully compiled: $(TCP_TEST_BIN)
 
 # Task 7 Redistribution Unit Tests
 $(REDIST_TEST_BIN): $(BUILD_DIR)/RedistributionEngine.o $(BUILD_DIR)/medicine.o $(TESTS_DIR)/redistribution_test.cpp | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Redistribution test successfully compiled: $(REDIST_TEST_BIN)
 
 # Task 7 Linux System Monitor Unit Tests
 $(SYS_TEST_BIN): $(BUILD_DIR)/SystemMonitor.o $(TESTS_DIR)/system_monitor_test.cpp | dirs
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] System monitor test successfully compiled: $(SYS_TEST_BIN)
 
 ipc-test: $(IPC_TEST_BIN)
@@ -157,8 +172,11 @@ redistribution-test: $(REDIST_TEST_BIN)
 system-monitor-test: $(SYS_TEST_BIN)
 	@./$(SYS_TEST_BIN)
 
+cli-regress: $(APP_BIN)
+	@sh tests/cli_regress.sh
+
 test: $(TEST_BIN) $(SENSOR_TEST_BIN) $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) \
-      $(WORKER_BIN) $(THREAD_TEST_BIN) $(TCP_TEST_BIN) $(REDIST_TEST_BIN) $(SYS_TEST_BIN)
+      $(WORKER_BIN) $(THREAD_TEST_BIN) $(TCP_TEST_BIN) $(REDIST_TEST_BIN) $(SYS_TEST_BIN) $(APP_BIN)
 	@echo "=========================================="
 	@echo " Running MediSave Edge Unit Tests..."
 	@echo "=========================================="
@@ -191,6 +209,10 @@ test: $(TEST_BIN) $(SENSOR_TEST_BIN) $(IPC_TEST_BIN) $(PROCESS_TEST_BIN) \
 	@echo " Running Linux /proc System Monitor Tests..."
 	@echo "=========================================="
 	@./$(SYS_TEST_BIN)
+	@echo "=========================================="
+	@echo " Running CLI Regression Tests..."
+	@echo "=========================================="
+	@sh tests/cli_regress.sh
 
 driver:
 	@$(MAKE) -C $(DRIVER_DIR) all
@@ -214,7 +236,8 @@ help:
 	@echo MediSave Edge Build Commands:
 	@echo   make                   - Compile all binaries (app, server, client, worker, tests)
 	@echo   make run               - Compile and launch bin/medisave
-	@echo   make test              - Compile and run all 8 test suites
+	@echo   make test              - Compile and run all 8 test suites plus CLI regression tests
+	@echo   make cli-regress       - Run CLI regression tests
 	@echo   make redistribution-test - Run redistribution engine unit tests
 	@echo   make system-monitor-test - Run Linux /proc system monitor unit tests
 	@echo   make thread-test       - Compile and run multithreading tests

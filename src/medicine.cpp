@@ -38,7 +38,10 @@ Medicine::Medicine(const std::string& id,
         throw std::invalid_argument("Medicine ID cannot be empty or contain invalid characters.");
     }
     if (!isValidName(name)) {
-        throw std::invalid_argument("Medicine name cannot be empty.");
+        throw std::invalid_argument("Medicine name cannot be empty, contain '|', or contain control characters.");
+    }
+    if (!isValidBatchNumber(batchNumber)) {
+        throw std::invalid_argument("Medicine batch number cannot be empty, contain '|', or contain control characters.");
     }
     if (!isValidQuantity(quantity)) {
         throw std::invalid_argument("Medicine quantity cannot be negative.");
@@ -71,7 +74,7 @@ bool Medicine::setName(const std::string& newName) {
 }
 
 bool Medicine::setBatchNumber(const std::string& batch) {
-    if (batch.empty()) return false;
+    if (!isValidBatchNumber(batch)) return false;
     batchNumber = batch;
     return true;
 }
@@ -160,6 +163,7 @@ bool Medicine::deserialize(const std::string& line, Medicine& outMed) {
 
         if (!isValidId(parsedId) ||
             !isValidName(parsedName) ||
+            !isValidBatchNumber(parsedBatch) ||
             !isValidQuantity(parsedQty) ||
             !isValidDate(parsedExpiry) ||
             !isValidStockBounds(parsedMinStock, parsedMaxStock) ||
@@ -194,10 +198,32 @@ bool Medicine::isValidId(const std::string& id) {
 
 bool Medicine::isValidName(const std::string& name) {
     if (name.empty()) return false;
+    bool hasNonSpace = false;
     for (char c : name) {
-        if (!std::isspace(static_cast<unsigned char>(c))) return true;
+        unsigned char uc = static_cast<unsigned char>(c);
+        if (c == '|' || std::iscntrl(uc)) {
+            return false;
+        }
+        if (!std::isspace(uc)) {
+            hasNonSpace = true;
+        }
     }
-    return false; // All whitespace
+    return hasNonSpace;
+}
+
+bool Medicine::isValidBatchNumber(const std::string& batch) {
+    if (batch.empty()) return false;
+    bool hasNonSpace = false;
+    for (char c : batch) {
+        unsigned char uc = static_cast<unsigned char>(c);
+        if (c == '|' || std::iscntrl(uc)) {
+            return false;
+        }
+        if (!std::isspace(uc)) {
+            hasNonSpace = true;
+        }
+    }
+    return hasNonSpace;
 }
 
 bool Medicine::isValidDate(const std::string& date) {

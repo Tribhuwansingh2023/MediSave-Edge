@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <cassert>
 #include <string>
 #include <cmath>
@@ -56,7 +57,32 @@ int main() {
     TEST_CHECK(!dummyMonitor.isAvailable(), "StorageMonitor correctly reports device unavailable");
     TEST_CHECK(!dummyMonitor.isCritical(), "StorageMonitor safe default for isCritical when disconnected");
 
-    // 6. Live /dev/medisave tests (if module is loaded into kernel)
+    // 6. Fake regular file sensor test (validating lseek rewind in readRaw)
+    const std::string mockSensorPath = "mock_device_sensor.tmp";
+    {
+        std::ofstream mockFile(mockSensorPath, std::ios::trunc);
+        mockFile << "Temperature: 4.50 C\nStatus: NORMAL\n";
+    }
+
+    DeviceSensor fakeFileSensor(mockSensorPath);
+    TEST_CHECK(fakeFileSensor.connect(), "Fake device file open succeeds");
+
+    double fakeTemp1 = 0.0;
+    bool read1 = fakeFileSensor.readTemperature(fakeTemp1);
+    TEST_CHECK(read1 && std::abs(fakeTemp1 - 4.50) < 0.01, "Fake device first temperature read succeeds (4.50 C)");
+
+    double fakeTemp2 = 0.0;
+    bool read2 = fakeFileSensor.readTemperature(fakeTemp2);
+    TEST_CHECK(read2 && std::abs(fakeTemp2 - 4.50) < 0.01, "Fake device repeated read succeeds via lseek rewind");
+
+    std::string fakeStatus;
+    bool statusOk = fakeFileSensor.getStatus(fakeStatus);
+    TEST_CHECK(statusOk && fakeStatus == "NORMAL", "Fake device getStatus succeeds via lseek rewind");
+
+    fakeFileSensor.disconnect();
+    std::remove(mockSensorPath.c_str());
+
+    // 7. Live /dev/medisave tests (if module is loaded into kernel)
     DeviceSensor liveSensor("/dev/medisave");
     if (liveSensor.connect()) {
         std::cout << "\n--- Active Kernel Driver Tests (/dev/medisave) ---\n";

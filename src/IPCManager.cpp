@@ -1,6 +1,7 @@
 #include "IPCManager.h"
 #include <iostream>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -146,14 +147,51 @@ bool IPCManager::readFromPipe(std::string& message, bool nonBlocking) {
     return true;
 }
 
+bool IPCManager::readRawFromPipe(std::string& rawData, bool nonBlocking) {
+    if (pipeFd[0] < 0) {
+        return false;
+    }
+
+#if defined(__linux__) || defined(__unix__)
+    if (nonBlocking) {
+        int flags = fcntl(pipeFd[0], F_GETFL, 0);
+        if (flags >= 0) {
+            fcntl(pipeFd[0], F_SETFL, flags | O_NONBLOCK);
+        }
+    }
+#else
+    (void)nonBlocking;
+#endif
+
+    rawData.clear();
+    char buffer[512];
+    bool readAny = false;
+
+    while (true) {
+#if defined(__linux__) || defined(__unix__)
+        ssize_t bytesRead = read(pipeFd[0], buffer, sizeof(buffer));
+#else
+        int bytesRead = _read(pipeFd[0], buffer, sizeof(buffer));
+#endif
+        if (bytesRead > 0) {
+            rawData.append(buffer, bytesRead);
+            readAny = true;
+        } else {
+            break;
+        }
+    }
+
+    return readAny;
+}
+
 // =========================================================================
 // POSIX Shared Memory Primitives
 // =========================================================================
 
 bool IPCManager::createSharedMemory() {
 #if defined(__linux__) || defined(__unix__)
-    // 1. Create or open shared memory object with read/write
-    shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR, 0666);
+    // 1. Create or open shared memory object with read/write mode 0600
+    shmFd = shm_open(shmName.c_str(), O_CREAT | O_RDWR, 0600);
     if (shmFd < 0) {
         return false;
     }
@@ -246,7 +284,7 @@ bool IPCManager::createSemaphore(unsigned int initialValue) {
     // Ensure prior dead instances are removed
     sem_unlink(semName.c_str());
 
-    sem_t* sem = sem_open(semName.c_str(), O_CREAT | O_EXCL, 0666, initialValue);
+    sem_t* sem = sem_open(semName.c_str(), O_CREAT | O_EXCL, 0600, initialValue);
     if (sem == SEM_FAILED) {
         return false;
     }
@@ -277,7 +315,23 @@ bool IPCManager::openSemaphore() {
 bool IPCManager::lockSemaphore() {
 #if defined(__linux__) || defined(__unix__)
     if (!semPtr) return false;
-    return (sem_wait(semPtr) == 0);
+
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+        return false;
+    }
+    ts.tv_sec += 2; // 2-second timeout
+
+    while (true) {
+        int res = sem_timedwait(semPtr, &ts);
+        if (res == 0) {
+            return true;
+        }
+        if (errno == EINTR) {
+            continue; // retry on interrupted system call
+        }
+        return false; // ETIMEDOUT or invalid semaphore
+    }
 #else
     return true;
 #endif

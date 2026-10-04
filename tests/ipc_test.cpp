@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <chrono>
 #include <cassert>
 
 int main() {
@@ -85,6 +86,25 @@ int main() {
     // 6. IPC Cleanup
     ipc.cleanupAll();
     std::cout << "[PASS] IPC cleanup\n";
+
+    // 7. Semaphore Timeout Test (sem_timedwait)
+    IPCManager timeoutIpc("/medisave_timeout_shm", "/medisave_timeout_sem");
+#if defined(__linux__) || defined(__unix__)
+    timeoutIpc.createSemaphore(0); // Count is 0, lockSemaphore will wait and timeout after 2s
+    auto start = std::chrono::steady_clock::now();
+    bool lockResult = timeoutIpc.lockSemaphore();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+
+    if (!lockResult && elapsed >= 1800 && elapsed <= 3000) {
+        std::cout << "[PASS] Semaphore timeout (sem_timedwait expired after 2s)\n";
+    } else {
+        std::cout << "[FAIL] Semaphore timeout (result=" << lockResult << ", elapsed=" << elapsed << "ms)\n";
+        allPassed = false;
+    }
+    timeoutIpc.cleanupAll();
+#else
+    std::cout << "[PASS] Semaphore timeout (simulated)\n";
+#endif
 
     std::cout << "\n";
     if (allPassed) {

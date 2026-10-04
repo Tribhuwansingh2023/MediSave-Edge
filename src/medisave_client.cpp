@@ -50,13 +50,14 @@ int main(int argc, char* argv[]) {
     TcpClient client(DEFAULT_TCP_HOST, DEFAULT_TCP_PORT);
     std::string ack;
 
-    if (client.sendFacilityUpdate(msg, ack)) {
+    if (client.sendFacilityUpdate(msg, ack) && ack.rfind("ERR", 0) != 0) {
         std::cout << "\nServer acknowledgement received: " << ack << "\n";
         std::cout << "Transaction completed successfully.\n";
         std::cout << "========================================\n";
         return 0;
     } else {
-        std::cerr << "\n[ERROR] " << client.getLastError() << "\n";
+        std::string err = client.getLastError().empty() ? ack : client.getLastError();
+        std::cerr << "\n[ERROR] " << err << "\n";
         std::cout << "========================================\n";
         return 1;
     }

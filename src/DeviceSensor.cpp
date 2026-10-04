@@ -31,12 +31,23 @@ DeviceSensor::~DeviceSensor() {
 }
 
 bool DeviceSensor::connect() {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     if (connected && fileDescriptor >= 0) {
         return true;
     }
 
 #if defined(__linux__) || defined(__unix__)
+#if defined(O_CLOEXEC)
+    fileDescriptor = open(devicePath.c_str(), O_RDWR | O_CLOEXEC);
+#else
     fileDescriptor = open(devicePath.c_str(), O_RDWR);
+    if (fileDescriptor >= 0) {
+        int flags = fcntl(fileDescriptor, F_GETFD);
+        if (flags != -1) {
+            fcntl(fileDescriptor, F_SETFD, flags | FD_CLOEXEC);
+        }
+    }
+#endif
 #else
     fileDescriptor = _open(devicePath.c_str(), O_RDWR);
 #endif
@@ -53,6 +64,7 @@ bool DeviceSensor::connect() {
 }
 
 void DeviceSensor::disconnect() {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     if (connected && fileDescriptor >= 0) {
 #if defined(__linux__) || defined(__unix__)
         close(fileDescriptor);
@@ -65,18 +77,22 @@ void DeviceSensor::disconnect() {
 }
 
 bool DeviceSensor::isConnected() const {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     return connected;
 }
 
 std::string DeviceSensor::getDevicePath() const {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     return devicePath;
 }
 
 std::string DeviceSensor::getLastError() const {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     return lastError;
 }
 
 bool DeviceSensor::readTemperature(double& temperature) {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     if (!isConnected()) {
         if (!connect()) {
             return false;
@@ -117,6 +133,7 @@ bool DeviceSensor::readTemperature(double& temperature) {
 }
 
 bool DeviceSensor::setTemperature(double temperature) {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     // User-space validation before dispatching to kernel
     if (!std::isfinite(temperature) || temperature < -50.0 || temperature > 100.0) {
         lastError = "Invalid temperature. Must be a finite number between -50°C and 100°C.";
@@ -157,6 +174,7 @@ bool DeviceSensor::setTemperature(double temperature) {
 }
 
 bool DeviceSensor::getStatus(std::string& status) {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     if (!isConnected()) {
         if (!connect()) {
             return false;
@@ -198,6 +216,7 @@ bool DeviceSensor::getStatus(std::string& status) {
 }
 
 bool DeviceSensor::readRaw(std::string& rawOutput) {
+    std::lock_guard<std::recursive_mutex> lock(sensorMutex);
     if (!isConnected() || fileDescriptor < 0) {
         return false;
     }
@@ -206,8 +225,10 @@ bool DeviceSensor::readRaw(std::string& rawOutput) {
     std::memset(buffer, 0, sizeof(buffer));
 
 #if defined(__linux__) || defined(__unix__)
+    lseek(fileDescriptor, 0, SEEK_SET);
     ssize_t bytesRead = read(fileDescriptor, buffer, sizeof(buffer) - 1);
 #else
+    _lseek(fileDescriptor, 0, SEEK_SET);
     int bytesRead = _read(fileDescriptor, buffer, sizeof(buffer) - 1);
 #endif
 
