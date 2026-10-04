@@ -104,7 +104,7 @@ $(TEST_BIN): $(BUILD_DIR)/medicine.o $(BUILD_DIR)/inventory_manager.o $(BUILD_DI
 
 # Task 4 Device Sensor Integration Tests
 $(SENSOR_TEST_BIN): $(BUILD_DIR)/DeviceSensor.o $(BUILD_DIR)/StorageMonitor.o $(TESTS_DIR)/device_sensor_test.cpp | dirs
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ $(LDFLAGS) -o $@
+	$(CXX) -Wall -Wextra -O1 -g -std=c++17 -pthread $(INCLUDES) $^ $(LDFLAGS) -o $@
 	@if [ -n "$(SIGN)" ]; then $(SIGN) $@; fi
 	@echo [Build] Device sensor test successfully compiled: $(SENSOR_TEST_BIN)
 

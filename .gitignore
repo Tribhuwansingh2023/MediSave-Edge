@@ -60,6 +60,7 @@ vgcore.*
 *.log
 *.tmp
 *.temp
+*.bak
 mock_proc/
 data/runtime/
 data/*.lock

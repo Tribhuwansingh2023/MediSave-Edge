@@ -1,6 +1,7 @@
 MediSave-Edge/
 ├── Makefile                                # Master build system
 ├── README.md                               # Complete project documentation
+├── GUIDE.md                                # Evaluation, local run, and trainer demo guide
 ├── .gitignore                              # Git ignore rules
 ├── LICENSE                                 # MIT License
 │
@@ -19,7 +20,7 @@ MediSave-Edge/
 │   ├── SocketCompat.h                      # Cross-platform socket abstraction
 │   ├── StorageMonitor.h                    # High-level storage chamber monitor
 │   ├── SystemMonitor.h                     # Linux /proc virtual filesystem telemetry
-│   ├── TcpClient.h                         # Non-blocking TCP client dispatcher
+│   ├── TcpClient.h                         # TCP client that sends one update and waits for the ACK
 │   ├── TcpProtocol.h                       # Wire text protocol & FacilityMessage
 │   ├── TcpServer.h                         # Multi-client TCP server
 │   ├── TemperatureMonitor.h                # Centralized temperature state & history
@@ -51,19 +52,21 @@ MediSave-Edge/
 │   ├── medisave_driver.c                   # Character device driver source
 │   └── README.md                           # Driver documentation & setup guide
 │
-├── tests/                                  # Automated Test Suites (8 Suites)
-│   ├── device_sensor_test.cpp              # 14 automated driver integration tests
-│   ├── driver_test.cpp                     # Direct driver verification
-│   ├── ipc_test.cpp                        # Pipe, shm, and semaphore unit tests
+├── tests/                                  # Automated Test Suites (9 C++ Suites + 1 Shell Suite)
+│   ├── cli_regress.sh                      # Automated CLI regression test suite (5 tests)
+│   ├── device_sensor_test.cpp              # 18 automated driver integration tests
+│   ├── driver_test.cpp                     # Direct driver verification / userspace fallback test
+│   ├── ipc_test.cpp                        # Pipe, POSIX shared memory, and semaphore unit tests
 │   ├── process_test.cpp                    # fork, exec, and waitpid lifecycle tests
-│   ├── redistribution_test.cpp             # 12 redistribution matching & bounds tests
+│   ├── redistribution_test.cpp             # Surplus/shortage matching and transfer bounds tests
+│   ├── sign.ps1                            # Windows Authenticode code signing script for local dev
 │   ├── system_monitor_test.cpp             # Linux /proc filesystem parsing tests
 │   ├── tcp_test.cpp                        # TCP server, client & protocol unit tests
-│   ├── test_inventory.cpp                  # 35 automated inventory tests
+│   ├── test_inventory.cpp                  # 49 automated inventory unit tests
 │   └── thread_test.cpp                     # Multithreading, mutex & CV unit tests
 │
 ├── data/                                   # Data directory
-│   └── medicines.txt                       # Persistent inventory storage
+│   └── medicines.txt                       # Persistent inventory storage (25 records)
 │
 └── docs/                                   # Documentation
     ├── README.md                           # Master documentation index

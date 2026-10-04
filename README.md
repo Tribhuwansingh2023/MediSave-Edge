@@ -1,11 +1,41 @@
 # MediSave Edge
 ### Linux-Based Medicine Storage Monitoring, Inventory Alert and Redistribution Decision System
 
-**Student Name:** Tribhuwan Singh  
-**Project Type:** Individual Capstone Project  
-**Domain:** Software & Hardware Architecture / Linux System Programming  
-**Implementation Languages:** C (Linux Kernel Module) / C++17 (User-space Engine)  
-**Target Environment:** Linux  
+| Attribute | Details |
+| :--- | :--- |
+| **Student Name** | Tribhuwan Singh |
+| **Project Type** | Individual Capstone Project |
+| **Domain** | Software & Hardware Architecture / Linux System Programming |
+| **Implementation Languages** | C (Linux Kernel Module, C99) / C++17 (User-space Engine) |
+| **Target Environment** | Linux (Ubuntu 20.04+ / Debian 11+, x86_64) |
+
+---
+
+## Table of Contents
+
+- [1. Project Overview](#1-project-overview)
+- [2. Problem Statement](#2-problem-statement)
+- [3. Objectives](#3-objectives)
+- [4. Key Features](#4-key-features)
+- [5. Technology Stack](#5-technology-stack)
+- [6. System Architecture](#6-system-architecture)
+- [7. User Space and Kernel Space](#7-user-space-and-kernel-space)
+- [8. Device Driver Architecture](#8-device-driver-architecture)
+- [9. Process Architecture](#9-process-architecture)
+- [10. IPC Architecture](#10-ipc-architecture)
+- [11. Multithreading Architecture](#11-multithreading-architecture)
+- [12. TCP Architecture](#12-tcp-architecture)
+- [13. Redistribution Architecture](#13-redistribution-architecture)
+- [14. Linux System Monitoring (`/proc`)](#14-linux-system-monitoring-proc)
+- [15. Project Structure](#15-project-structure)
+- [16. Requirements](#16-requirements)
+- [17. Installation](#17-installation)
+- [18. Running the Project](#18-running-the-project)
+- [19. Testing](#19-testing)
+- [20. Limitations](#20-limitations)
+- [21. Future Scope](#21-future-scope)
+- [22. Author](#22-author)
+- [23. AI Assistance](#23-ai-assistance)
 
 ---
 
@@ -19,14 +49,14 @@ The system is designed as an operational prototype and decision-support monitori
 > MediSave Edge is an advisory decision-support software prototype. It does **not** make autonomous medical diagnoses, establish treatment regimens, or automatically execute physical drug transfers. All redistribution proposals require human review and authorization by certified medical officers and pharmacists.
 
 > **EVALUATION & LOCAL RUN GUIDE:**  
-> For complete step-by-step local running instructions, teacher demonstration procedures, and trainer viva defense Q&A, refer to [**`GUIDE.md`**](GUIDE.md).
+> Step-by-step run, evaluation, and demo guide: [**`GUIDE.md`**](GUIDE.md).
 
 ---
 
 ## 2. Problem Statement
 
 Public health facilities and decentralized healthcare depots routinely face critical inventory imbalances:
-* **Thermal Spoilage Risks**: Temperature-sensitive pharmaceuticals require strict storage maintenance. The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds (such as 2.0°C to 8.0°C for refrigerated cold-chain items) are used for the demo and should not be interpreted as universal storage requirements for all medicines. Undetected cooling failures cause silent efficacy loss.
+* **Thermal Spoilage Risks**: Temperature-sensitive pharmaceuticals require strict storage maintenance. Undetected cooling failures cause silent efficacy loss.
 * **Unmonitored Shelf-Life Expiry**: Medicines expire unconsumed due to lack of automated tracking, resulting in financial loss and wasted supplies.
 * **Regional Supply Imbalances**: Acute drug shortages in rural clinics often occur simultaneously with surplus overstock in central district warehouses.
 * **Manual Tracking Overhead**: Manual clipboard checks and fragmented spreadsheets fail to provide real-time alerts or timely re-allocation decisions.
@@ -55,7 +85,7 @@ The project accomplishes the following technical and operational objectives:
 
 ### Inventory
 * **CRUD Engine**: Add, remove, update, and search medicines by ID and name substring.
-* **Stock Monitoring**: Dynamic threshold validation detecting depleted stock ($qty \le minStock$).
+* **Stock Monitoring**: Dynamic threshold validation detecting depleted stock (qty <= minStock).
 * **File Persistence**: Serialization and deserialization from `data/medicines.txt`.
 
 ### Expiry
@@ -90,7 +120,7 @@ The project accomplishes the following technical and operational objectives:
 ### Redistribution
 * **Surplus & Shortage Analysis**: Classification of facility stocks relative to minimum requirements.
 * **Deterministic Matching**: Prioritization of highest deficits, earliest expiries, and deterministic name/ID ties.
-* **Transfer Constraints**: Transfers strictly bounded by $\min(\text{Surplus}, \text{Shortage})$; never negative or zero.
+* **Transfer Constraints**: Transfers strictly bounded by min(Surplus, Shortage); never negative or zero.
 * **Advisory Disclaimer**: Software proposals that do not execute automatic physical movements.
 
 ### System Monitoring
@@ -104,8 +134,8 @@ The project accomplishes the following technical and operational objectives:
 ## 5. Technology Stack
 
 * **Programming Languages**: C (Linux Kernel Module, C99) / C++ (User-space Engine, C++17).
-* **Operating System**: Linux (Ubuntu 22.04 LTS / Debian 12 / Linux Kernel 5.x–6.x).
-* **Build System**: GNU Make, GCC / G++ toolchain.
+* **Operating System**: Linux (Ubuntu 20.04+ / Debian 11+ or compatible Linux distribution, x86_64).
+* **Build System**: GNU Make, GCC / G++ toolchain with C++17 support.
 * **Linux Kernel Subsystems**: Loadable Kernel Module (LKM), Character Device Subsystem, VFS, IOCTL, Kernel Mutexes.
 * **System Programming APIs**: POSIX System Calls (`fork`, `exec`, `waitpid`, `pipe`, `shm_open`, `mmap`, `sem_open`, `sigaction`).
 * **Networking**: POSIX Berkeley Sockets (TCP/IP, IPv4, stream sockets).
@@ -118,35 +148,35 @@ The project accomplishes the following technical and operational objectives:
 
 ```text
                          MEDISAVE EDGE
-                              |
-       -------------------------------------------------
-       |                    |                         |
-       v                    v                         v
-   INVENTORY           STORAGE MONITORING       FACILITY NETWORK
-       |                    |                         |
-       |               DeviceSensor                  |
-       |                    |                        TCP
-       |               /dev/medisave                  |
-       |                    |                         |
-       ---------------------|--------------------------
-                            v
-                      ALERT ENGINE
-                            |
-              ---------------------------
-              |                         |
-              v                         v
-        EXPIRY ALERTS             STOCK ANALYSIS
-                                        |
-                                        v
-                              REDISTRIBUTION ENGINE
-                                        |
-                                        v
-                                SYSTEM DASHBOARD
-                                        |
-                         ----------------------------
-                         |            |             |
-                        CPU         MEMORY        UPTIME
-                       /proc        /proc         /proc
+                               |
+        -------------------------------------------------
+        |                    |                         |
+        v                    v                         v
+    INVENTORY           STORAGE MONITORING       FACILITY NETWORK
+        |                    |                         |
+        |               DeviceSensor                  |
+        |                    |                        TCP
+        |               /dev/medisave                  |
+        |                    |                         |
+        ---------------------|--------------------------
+                             v
+                       ALERT ENGINE
+                             |
+               ---------------------------
+               |                         |
+               v                         v
+         EXPIRY ALERTS             STOCK ANALYSIS
+                                         |
+                                         v
+                               REDISTRIBUTION ENGINE
+                                         |
+                                         v
+                                 SYSTEM DASHBOARD
+                                         |
+                          ----------------------------
+                          |            |             |
+                         CPU         MEMORY        UPTIME
+                        /proc        /proc         /proc
 ```
 
 ---
@@ -155,7 +185,7 @@ The project accomplishes the following technical and operational objectives:
 
 ```text
 ================================================================================
-                               USER SPACE (Ring 3)
+                                USER SPACE (Ring 3)
 ================================================================================
   C++ Application (bin/medisave)
   - DeviceSensor (Hardware Abstraction Layer)
@@ -168,7 +198,7 @@ The project accomplishes the following technical and operational objectives:
           | open(), read(), write(), ioctl() system calls
           v
 ================================================================================
-                               KERNEL SPACE (Ring 0)
+                                KERNEL SPACE (Ring 0)
 ================================================================================
   Linux VFS (Virtual File System)
        |
@@ -192,7 +222,7 @@ C++ Application (DeviceSensor)
 open() / read() / write() / ioctl()
       |
       v
-/dev/medisave (Major 240 / alloc_chrdev_region)
+/dev/medisave (dynamic major number (alloc_chrdev_region))
       |
       v
 Character Device Driver (medisave_driver.c)
@@ -333,8 +363,7 @@ Advisory Redistribution Recommendation
 (Facility A ---> Facility B)
 ```
 
-> **IMPORTANT:**  
-> The system generates advisory recommendations only. It does **not** automatically modify local stock, dispatch transport, or execute physical medicine transfers.
+> Note: All redistribution proposals are strictly advisory decision-support recommendations requiring clinical and administrative sign-off.
 
 ---
 
@@ -343,7 +372,7 @@ Advisory Redistribution Recommendation
 MediSave Edge directly parses the virtual filesystem without third-party monitoring libraries:
 * **/proc/cpuinfo**: Extracts processor model string (`model name` / `Hardware`) and counts logical processor instances.
 * **/proc/stat**: Samples cumulative CPU counters across a 50–100ms interval to compute delta utilization percentage:
-  $$\text{CPU Usage \%} = \frac{\Delta\text{Total} - \Delta\text{Idle}}{\Delta\text{Total}} \times 100$$
+  `CPU Usage % = ((delta_Total - delta_Idle) / delta_Total) * 100`
 * **/proc/meminfo**: Reads `MemTotal` and `MemAvailable` to compute active memory consumption in gigabytes and percentage.
 * **/proc/uptime**: Reads elapsed kernel uptime seconds and formats into duration strings (e.g., `"2 days, 1 hours 15 minutes"`).
 
@@ -355,6 +384,7 @@ MediSave Edge directly parses the virtual filesystem without third-party monitor
 MediSave-Edge/
 ├── Makefile                                # Master build system
 ├── README.md                               # Complete project documentation
+├── GUIDE.md                                # Evaluation, local run, and trainer demo guide
 ├── .gitignore                              # Git ignore rules
 ├── LICENSE                                 # MIT License
 │
@@ -373,7 +403,7 @@ MediSave-Edge/
 │   ├── SocketCompat.h                      # Cross-platform socket abstraction
 │   ├── StorageMonitor.h                    # High-level storage chamber monitor
 │   ├── SystemMonitor.h                     # Linux /proc virtual filesystem telemetry
-│   ├── TcpClient.h                         # Non-blocking TCP client dispatcher
+│   ├── TcpClient.h                         # TCP client that sends one update and waits for the ACK
 │   ├── TcpProtocol.h                       # Wire text protocol & FacilityMessage
 │   ├── TcpServer.h                         # Multi-client TCP server
 │   ├── TemperatureMonitor.h                # Centralized temperature state & history
@@ -405,26 +435,35 @@ MediSave-Edge/
 │   ├── medisave_driver.c                   # Character device driver source
 │   └── README.md                           # Driver documentation & setup guide
 │
-├── tests/                                  # Automated Test Suites (8 Suites)
-│   ├── device_sensor_test.cpp              # 14 automated driver integration tests
-│   ├── driver_test.cpp                     # Direct driver verification
-│   ├── ipc_test.cpp                        # Pipe, shm, and semaphore unit tests
+├── tests/                                  # Automated Test Suites (9 C++ Suites + 1 Shell Suite)
+│   ├── cli_regress.sh                      # Automated CLI regression test suite (5 tests)
+│   ├── device_sensor_test.cpp              # 18 automated driver integration tests
+│   ├── driver_test.cpp                     # Direct driver verification / userspace fallback test
+│   ├── ipc_test.cpp                        # Anonymous pipe, POSIX shared memory, and semaphore unit tests
 │   ├── process_test.cpp                    # fork, exec, and waitpid lifecycle tests
-│   ├── redistribution_test.cpp             # 12 redistribution matching & bounds tests
+│   ├── redistribution_test.cpp             # Surplus/shortage matching and transfer bounds tests
+│   ├── sign.ps1                            # Windows Authenticode code signing script for local dev
 │   ├── system_monitor_test.cpp             # Linux /proc filesystem parsing tests
 │   ├── tcp_test.cpp                        # TCP server, client & protocol unit tests
-│   ├── test_inventory.cpp                  # 35 automated inventory tests
+│   ├── test_inventory.cpp                  # 49 automated inventory unit tests
 │   └── thread_test.cpp                     # Multithreading, mutex & CV unit tests
 │
 ├── data/                                   # Data directory
-│   └── medicines.txt                       # Persistent inventory storage
+│   └── medicines.txt                       # Persistent inventory storage (25 records)
 │
 └── docs/                                   # Documentation
     ├── README.md                           # Master documentation index
     ├── project_structure.txt               # Complete repository directory tree
     ├── architecture/                       # Subsystem architecture specifications
     ├── demo/                               # Trainer demo script & command sheets
-    ├── progress/                           # Milestone development reports
+    ├── progress/                           # Milestone development reports (Stages 1-6)
+    │   ├── stage1_inventory.md             # Stage 1 milestone report
+    │   ├── stage2_device_driver.md         # Stage 2 milestone report
+    │   ├── stage3_driver_integration.md    # Stage 3 milestone report
+    │   ├── stage4_process_ipc.md           # Stage 4 milestone report
+    │   ├── stage5_multithreading_tcp.md    # Stage 5 milestone report
+    │   ├── stage6_final_features.md        # Stage 6 milestone report
+    │   └── progress_report.md              # Master consolidated progress report
     ├── requirements/                       # Requirements specifications
     ├── testing/                            # Audit and official test result reports
     └── uml/                                # PlantUML diagrams & documentation
@@ -435,8 +474,7 @@ MediSave-Edge/
 ## 16. Requirements
 
 ### Operating System:
-* Linux (Ubuntu 20.04+, Debian 11+, or compatible Linux distribution).
-* x86_64 architecture.
+* Linux (Ubuntu 20.04+, Debian 11+, or compatible Linux distribution, x86_64).
 
 ### Build Toolchain:
 * GCC / G++ (supporting C++17, version 9.0 or later).
@@ -504,6 +542,9 @@ dmesg | tail -n 5
 ./bin/medisave_client Facility-B Paracetamol P2026A 20 SHORTAGE
 ```
 
+> **Port 5000 Conflict Warning:**  
+> Menu option 12 launches `TcpServer` on port 5000, and `bin/medisave_server` also binds to port 5000. They should not be run simultaneously to prevent socket binding conflicts.
+
 ### 4. Unload Kernel Module:
 ```bash
 sudo rmmod medisave_driver
@@ -533,22 +574,192 @@ Consolidated Progress Report: [`docs/progress/progress_report.md`](docs/progress
 
 | Test Suite | Focus Area | Status |
 | :--- | :--- | :---: |
-| `bin/test_inventory` | CRUD operations, calendar expiry, Max-Heap triage, persistence | **35 / 35 PASS** |
-| `bin/device_sensor_test` | POSIX system call wrapper, IOCTL control plane, parameter validation | **14 / 14 PASS** |
-| `bin/driver_test` | Kernel module character device test / user-space fallback verification | **PASS** |
+| `bin/test_inventory` | CRUD operations, calendar expiry, Max-Heap triage, persistence | **49 / 49 PASS** |
+| `bin/device_sensor_test` | POSIX system call wrapper, IOCTL control plane, parameter validation | **18 / 18 PASS** |
+| `bin/driver_test` | Kernel module character device test / user-space fallback verification | **PASS (Fallback)** |
 | `bin/ipc_test` | Anonymous pipe streaming, POSIX shared memory, POSIX semaphores | **PASS** |
 | `bin/process_test` | Multi-process fork, exec, waitpid harvesting, zombie prevention | **PASS** |
 | `bin/thread_test` | `std::thread`, `std::mutex`, `std::condition_variable` alert triage | **PASS** |
-| `bin/tcp_test` | TCP socket server, client connection, payload exchange, 10 validation test cases | **PASS** |
+| `bin/tcp_test` | TCP socket server, client connection, wire protocol, and acknowledgment | **PASS** |
 | `bin/redistribution_test` | Surplus/shortage matching, transfer limits, deterministic priority | **PASS** |
 | `bin/system_monitor_test` | Virtual filesystem `/proc` direct parsing with fallback resilience | **PASS** |
+| `tests/cli_regress.sh` | CLI EOF handling, clean shutdown, and pipe delimiter rejection | **5 / 5 PASS** |
 | `driver/medisave_driver.ko` | Linux Character Device Driver (Kernel C99) | **SOURCE VERIFIED** *(Live verification pending Linux host)* |
+
+<details>
+<summary><strong>View Real Execution Output (make test)</strong></summary>
+
+```text
+==========================================
+ Running MediSave Edge Unit Tests...
+==========================================
+========================================
+  MEDISAVE EDGE - UNIT TEST SUITE
+========================================
+
+ [PASS] Medicine creation with valid parameters
+ [PASS] Medicine quantity retrieval
+ [PASS] Medicine not low stock when qty > minStock
+ [PASS] Medicine validation rejects negative quantity and bad dates
+ [PASS] Add unique medicine ID to inventory
+ [PASS] Inventory count increases after addition
+ [PASS] Duplicate medicine ID correctly rejected
+ [PASS] Inventory count unchanged after duplicate rejection
+ [PASS] Search medicine by exact ID
+ [PASS] Search non-existent ID returns nullptr
+ [PASS] Search medicines by name substring matches correct records
+ [PASS] Update stock by adding quantity
+ [PASS] Update stock by dispensing quantity
+ [PASS] Update stock rejects negative quantity
+ [PASS] Remove existing medicine by ID
+ [PASS] Removed medicine is no longer in inventory
+ [PASS] Removing non-existent medicine returns false
+ [PASS] Calculate negative days for expired medicine
+ [PASS] Classify EXPIRED status
+ [PASS] Calculate 3 days remaining until expiry
+ [PASS] Classify CRITICAL status for 3 days
+ [PASS] Calculate 20 days remaining until expiry
+ [PASS] Classify WARNING status for 20 days
+ [PASS] Calculate > 30 days for safe medicine
+ [PASS] Classify NORMAL status
+ [PASS] getExpiredMedicines detects expired records
+ [PASS] getExpiringSoonMedicines detects expiring records
+ [PASS] getLowStockMedicines detects depleted records
+ [PASS] Alert queue generated with active warnings
+ [PASS] Priority Queue correctly prioritizes expired medicine at highest triage rank
+ [PASS] Priority Queue ranks critical 3-day expiry immediately following expired stock
+ [PASS] Save inventory to text file
+ [PASS] Load inventory from text file
+ [PASS] Loaded inventory has correct count
+ [PASS] Deserialized medicine attributes match original values
+ [PASS] Atomic saveToFile created backup .bak file
+ [PASS] Constructor rejects '|' in medicine name
+ [PASS] Constructor rejects control characters in medicine name
+ [PASS] Constructor rejects '|' in batch number
+ [PASS] Constructor rejects control characters in batch number
+ [PASS] setName rejects '|'
+ [PASS] setName rejects control characters
+ [PASS] setBatchNumber rejects '|'
+ [PASS] setBatchNumber rejects control characters
+ [PASS] deserialize rejects line with extra pipe delimiters
+ [PASS] getAllMedicines sorted alphabetically by ID
+ [PASS] getLowStockMedicines sorted alphabetically by ID
+ [PASS] getExpiredMedicines sorted by most overdue first
+ [PASS] getExpiringSoonMedicines sorted by soonest expiring first
+
+========================================
+ TEST RESULTS: 49 / 49 PASSED
+========================================
+==========================================
+ Running Device Sensor Integration Tests...
+==========================================
+========================================
+       DEVICE SENSOR TEST
+========================================
+
+ [PASS] DeviceSensor default path is /dev/medisave
+ [PASS] Sensor starts in disconnected state
+ [PASS] DeviceSensor custom path configured
+ [PASS] Graceful failure when device node is unavailable
+ [PASS] Meaningful error message populated on open failure
+ [PASS] readTemperature rejected when disconnected
+ [PASS] setTemperature rejected when disconnected
+ [PASS] getStatus rejected when disconnected
+ [PASS] Reject NaN temperature
+ [PASS] Reject Infinite temperature
+ [PASS] Reject out-of-range negative temperature (-100 C)
+ [PASS] Reject out-of-range positive temperature (200 C)
+ [PASS] StorageMonitor correctly reports device unavailable
+ [PASS] StorageMonitor safe default for isCritical when disconnected
+ [PASS] Fake device file open succeeds
+ [PASS] Fake device first temperature read succeeds (4.50 C)
+ [PASS] Fake device repeated read succeeds via lseek rewind
+ [PASS] Fake device getStatus succeeds via lseek rewind
+
+========================================
+ TEST RESULTS: 18 / 18 PASSED
+========================================
+==========================================
+ Running IPC (Pipe, Shm, Sem) Tests...
+==========================================
+[PASS] Pipe creation
+[PASS] Pipe communication
+[PASS] Shared memory creation
+[PASS] Shared memory communication
+[PASS] Semaphore synchronization
+[PASS] IPC cleanup
+[PASS] Semaphore timeout (simulated)
+
+All IPC tests passed.
+==========================================
+ Running Process (fork, exec, waitpid) Tests...
+==========================================
+[PASS] Process lifecycle
+==========================================
+ Running Multithreading (std::thread) Tests...
+==========================================
+[PASS] ThreadedMonitor starts and stops cleanly
+[PASS] ThreadedMonitor sensor worker acquires readings
+[PASS] ThreadedMonitor alert worker consumes alerts via CV
+[PASS] Thread-safe queue bounds and ordering
+
+All thread tests passed.
+==========================================
+ Running TCP Client/Server Socket Tests...
+==========================================
+[PASS] Socket compatibility abstraction initialized
+[PASS] Server bind and listen on port 5000
+[PASS] Single client connect and send
+[PASS] Server parses wire message protocol
+[PASS] Server responds with ACK
+[PASS] Client receives ACK confirmation
+[PASS] Multiple sequential client transactions
+[PASS] Handled 300 sequential client connections with finished threads joined
+[PASS] Server shutdown
+
+All TCP tests passed.
+==========================================
+ Running Redistribution Engine Tests...
+==========================================
+[PASS] Surplus detection
+[PASS] Shortage detection
+[PASS] Facility matching
+[PASS] Transfer quantity
+[PASS] Multiple facility handling
+[PASS] Recommendation ordering
+[PASS] Invalid transfer prevention
+
+All redistribution tests passed.
+==========================================
+ Running Linux /proc System Monitor Tests...
+==========================================
+[PASS] CPU information parsing
+[PASS] CPU utilization calculation
+[PASS] Memory calculation
+[PASS] /proc/uptime parsing
+[PASS] Mock /proc filesystem direct parsing
+[PASS] Graceful failure handling
+
+All system monitor tests passed.
+==========================================
+ Running CLI Regression Tests...
+==========================================
+[TEST] Immediate EOF (/dev/null) ... PASSED
+[TEST] Clean Menu Exit (Option 18) ... PASSED
+[TEST] Invalid menu choice followed by exit ... PASSED
+[TEST] Pipe delimiter rejection in Name ... PASSED
+[TEST] Pipe delimiter rejection in Batch ... PASSED
+==========================================
+ CLI Regression Tests Passed: 5 / 5
+==========================================
+```
+</details>
 
 ---
 
 ## 20. Limitations
 
-1. **Configurable Demonstration Thresholds**: The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds are used for the demo and should not be interpreted as universal storage requirements for all medicines.
+1. **Configurable Demonstration Thresholds**: The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds (such as 2.0°C to 8.0°C for refrigerated cold-chain items) are used for the demo and should not be interpreted as universal storage requirements for all medicines.
 2. **Simulated Hardware Sensor**: Environmental telemetry is generated within Linux kernel space memory using an internal state variable. Deployment on physical medical refrigerators requires interfacing with real 1-Wire (DS18B20) or I2C sensors.
 3. **Advisory Decision Support**: Redistribution proposals are intentionally non-autonomous to respect healthcare regulatory guidelines requiring licensed pharmacist sign-off.
 4. **Localhost Socket Networking**: Distributed facility simulation defaults to `127.0.0.1`. Cross-datacenter production deployments require TLS encryption and WAN routing.
@@ -569,7 +780,15 @@ Consolidated Progress Report: [`docs/progress/progress_report.md`](docs/progress
 
 ## 22. Author
 
-* **Student Name:** Tribhuwan Singh
-* **Email:** webosingh93@gmail.com
-* **GitHub Repository:** [Tribhuwansingh2023/MediSave-Edge](https://github.com/Tribhuwansingh2023/MediSave-Edge)
-* **License:** MIT License
+| Attribute | Details |
+| :--- | :--- |
+| **Student Name** | Tribhuwan Singh |
+| **Email** | webosingh93@gmail.com |
+| **GitHub Repository** | [Tribhuwansingh2023/MediSave-Edge](https://github.com/Tribhuwansingh2023/MediSave-Edge) |
+| **License** | MIT License |
+
+---
+
+## 23. AI Assistance
+
+AI tools were used for code review, bug fixing and cleanup with trainer approval. The design and implementation are the student's own work.

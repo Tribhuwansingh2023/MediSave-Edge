@@ -59,7 +59,7 @@ run_test "Invalid menu choice followed by exit" "99
 # Test 4: Name with pipe delimiter '|' is rejected
 OUTPUT=$(printf "1\nMED-CLI-01\nBad|Name\n18\n" | "$BIN" 2>&1)
 TOTAL=$((TOTAL + 1))
-if echo "$OUTPUT" | grep -iq "cannot contain" || echo "$OUTPUT" | grep -iq "invalid"; then
+if echo "$OUTPUT" | grep -iq "cannot.*contain" || echo "$OUTPUT" | grep -iq "invalid"; then
     echo "[TEST] Pipe delimiter rejection in Name ... PASSED"
     PASSED=$((PASSED + 1))
 else
@@ -71,7 +71,7 @@ fi
 # Test 5: Batch with pipe delimiter '|' is rejected
 OUTPUT=$(printf "1\nMED-CLI-02\nGoodName\nBad|Batch\n18\n" | "$BIN" 2>&1)
 TOTAL=$((TOTAL + 1))
-if echo "$OUTPUT" | grep -iq "cannot contain" || echo "$OUTPUT" | grep -iq "invalid"; then
+if echo "$OUTPUT" | grep -iq "cannot.*contain" || echo "$OUTPUT" | grep -iq "invalid"; then
     echo "[TEST] Pipe delimiter rejection in Batch ... PASSED"
     PASSED=$((PASSED + 1))
 else
