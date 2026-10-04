@@ -520,7 +520,16 @@ make test
 
 Official test report: [`docs/testing/test_results.md`](docs/testing/test_results.md)  
 Comprehensive audit: [`docs/testing/project_audit.md`](docs/testing/project_audit.md)  
-Consolidated Progress Report: [`docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md`](docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md)
+Consolidated Progress Report: [`docs/progress/progress_report.md`](docs/progress/progress_report.md)
+
+### Milestone Progress Reports
+* [**Stage 1: Inventory**](docs/progress/stage1_inventory.md) — Core C++ inventory management, medicine data models, and persistence.
+* [**Stage 2: Device Driver**](docs/progress/stage2_device_driver.md) — Linux character device driver (`medisave_driver.ko`), VFS operations, and IOCTL interface.
+* [**Stage 3: Driver Integration**](docs/progress/stage3_driver_integration.md) — User-space hardware abstraction layer (HAL) and `/dev/medisave` polling.
+* [**Stage 4: Process and IPC**](docs/progress/stage4_process_ipc.md) — Dedicated monitor worker process (`fork`/`exec`), anonymous pipes, POSIX shared memory, and semaphores.
+* [**Stage 5: Multithreading and TCP**](docs/progress/stage5_multithreading_tcp.md) — Multi-threaded sensor/alert pipeline, thread-safe queues, and TCP socket client/server networking.
+* [**Stage 6: Final Features**](docs/progress/stage6_final_features.md) — Redistribution recommendation engine, `/proc` virtual filesystem telemetry, and executive CLI dashboard.
+* [**Consolidated Progress Report**](docs/progress/progress_report.md) — Master consolidated progress report covering all 6 stages.
 
 | Test Suite | Focus Area | Status |
 | :--- | :--- | :---: |

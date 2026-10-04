@@ -1,15 +1,15 @@
-# MediSave Edge - Day 1 Progress Report
-## Core C++ Inventory and Expiry Management Module
+# MediSave Edge - Stage 1 Progress Report
+## Stage 1: Core C++ Inventory and Expiry Management Module
 
 **Author:** Tribhuwan Singh  
 **Date:** October 1, 2026  
-**Module:** Inventory, Expiry Triage & Alert Engine  
+**Module:** Stage 1 — Inventory, Expiry Triage & Alert Engine  
 
 ---
 
 ### 1. What Was Implemented
 
-Today, we built and verified the foundational core engine for **MediSave Edge**:
+In Stage 1, we built and verified the foundational core engine for **MediSave Edge**:
 * **`Medicine` Domain Entity:** Complete data modeling covering medicine ID, pharmaceutical name, batch number, stock quantity, expiration date (`YYYY-MM-DD`), threshold boundaries (`minStock`, `maxStock`), and critical cold-chain storage temperatures (`minTemp`, `maxTemp`).
 * **`InventoryManager` Subsystem:** In-memory medicine repository providing $O(1)$ lookup by ID, case-insensitive substring searching by name, real-time stock adjustments, and analytical queries for low-stock and expired batches.
 * **`ExpiryUtils` Analytical Engine:** Calendar calculation system measuring signed days remaining until expiration relative to current system time, triaging medicines into `EXPIRED`, `CRITICAL` (0–7 days), `WARNING` (8–30 days), and `NORMAL` (>30 days).

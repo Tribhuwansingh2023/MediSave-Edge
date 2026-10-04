@@ -65,10 +65,10 @@ docs/
 ---
 
 ## 6. Milestone Progress Reports (`docs/progress/`)
-* [**`MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md`**](progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md) — **Master 7–8 Day Consolidated Progress Report** covering the complete project lifecycle (Problem, Objectives, Daily Milestones, Testing Matrix, Limitations, and Evaluation Status).
-* [`day1_inventory.md`](progress/day1_inventory.md) — Task 2: Core C++ inventory and expiry management.
-* [`day1_device_driver.md`](progress/day1_device_driver.md) — Task 3: Linux character device driver module.
-* [`task4_driver_integration.md`](progress/task4_driver_integration.md) — Task 4: User-space driver integration HAL.
-* [`task5_process_ipc.md`](progress/task5_process_ipc.md) — Task 5: Processes, IPC (pipe, shm, sem), and signals.
-* [`task6_multithreading_tcp.md`](progress/task6_multithreading_tcp.md) — Task 6: Multithreading, alert queues, and TCP sockets.
-* [`task7_final_features.md`](progress/task7_final_features.md) — Task 7: Temperature monitoring, redistribution, and `/proc` telemetry.
+* [**`progress_report.md`**](progress/progress_report.md) — **Master Consolidated Progress Report** covering the complete project lifecycle (Problem, Objectives, Stage Milestones, Testing Matrix, Limitations, and Evaluation Status).
+* [`stage1_inventory.md`](progress/stage1_inventory.md) — Stage 1: Core C++ inventory and expiry management.
+* [`stage2_device_driver.md`](progress/stage2_device_driver.md) — Stage 2: Linux character device driver module.
+* [`stage3_driver_integration.md`](progress/stage3_driver_integration.md) — Stage 3: User-space driver integration HAL.
+* [`stage4_process_ipc.md`](progress/stage4_process_ipc.md) — Stage 4: Processes, IPC (pipe, shm, sem), and signals.
+* [`stage5_multithreading_tcp.md`](progress/stage5_multithreading_tcp.md) — Stage 5: Multithreading, alert queues, and TCP sockets.
+* [`stage6_final_features.md`](progress/stage6_final_features.md) — Stage 6: Temperature monitoring, redistribution, and `/proc` telemetry.

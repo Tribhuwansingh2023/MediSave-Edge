@@ -1,8 +1,8 @@
-# MediSave Edge: Day 1 Milestone — Linux Character Device Driver
-## 3-Minute Live Evaluation & Demonstration Script
+# MediSave Edge: Stage 2 Milestone — Linux Character Device Driver
+## Stage 2: 3-Minute Live Evaluation & Demonstration Script
 
 **Author:** Tribhuwan Singh  
-**Component:** Linux Character Device Driver (`/dev/medisave`) & C++ Integration  
+**Component:** Stage 2 — Linux Character Device Driver (`/dev/medisave`) & C++ Integration  
 **Duration:** ~3 Minutes  
 
 ---

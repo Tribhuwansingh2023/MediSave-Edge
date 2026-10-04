@@ -83,12 +83,13 @@ MediSave-Edge/
     │   ├── final_submission_checklist.md   # Final submission verification checklist
     │   └── trainer_demo.md                 # 5-10 minute trainer presentation script
     ├── progress/
-    │   ├── day1_device_driver.md           # Task 3: Driver milestone report
-    │   ├── day1_inventory.md               # Task 2: Inventory milestone report
-    │   ├── task4_driver_integration.md     # Task 4: Integration report
-    │   ├── task5_process_ipc.md            # Task 5: Process & IPC report
-    │   ├── task6_multithreading_tcp.md     # Task 6: Multithreading & TCP report
-    │   └── task7_final_features.md         # Task 7: Final features report
+    │   ├── progress_report.md              # Master consolidated progress report
+    │   ├── stage1_inventory.md             # Stage 1: Inventory milestone report
+    │   ├── stage2_device_driver.md         # Stage 2: Driver milestone report
+    │   ├── stage3_driver_integration.md     # Stage 3: Integration report
+    │   ├── stage4_process_ipc.md            # Stage 4: Process & IPC report
+    │   ├── stage5_multithreading_tcp.md     # Stage 5: Multithreading & TCP report
+    │   └── stage6_final_features.md         # Stage 6: Final features report
     ├── requirements/
     │   ├── final_requirements.md           # Master functional & non-functional requirements
     │   └── srs.md                          # Initial SRS baseline

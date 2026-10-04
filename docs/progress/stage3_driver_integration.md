@@ -1,9 +1,9 @@
-# MediSave Edge: Task 4 Progress Report
-## C++ Application & Linux Character Device Driver Integration
+# MediSave Edge: Stage 3 Progress Report
+## Stage 3: C++ Application & Linux Character Device Driver Integration
 
 **Author:** Tribhuwan Singh  
 **Date:** October 1, 2026  
-**Module:** Hardware Sensor Driver Integration (`DeviceSensor` & `StorageMonitor`)  
+**Module:** Stage 3 — Hardware Sensor Driver Integration (`DeviceSensor` & `StorageMonitor`)  
 
 ---
 
@@ -15,7 +15,7 @@ Integrate the C++ MediSave Edge user-space application with the Linux Character 
 
 ### 2. Existing Driver Reused
 
-The Linux kernel character device driver created in Task 3 (`driver/medisave_driver.c`) is fully reused:
+The Linux kernel character device driver created in Stage 2 (`driver/medisave_driver.c`) is fully reused:
 * Character device node: `/dev/medisave`
 * VFS file operations: `open()`, `read()`, `write()`, `unlocked_ioctl()`, `release()`
 * Internal integer storage in milli-Celsius ($6500 = 6.50^\circ\text{C}$) to respect Linux kernel FPU guidelines.
@@ -37,13 +37,13 @@ We implemented a two-tier modular abstraction:
 * [`src/StorageMonitor.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/StorageMonitor.cpp)
 * [`tests/device_sensor_test.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/tests/device_sensor_test.cpp)
 * [`docs/architecture/cpp_driver_integration.md`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/docs/architecture/cpp_driver_integration.md)
-* [`docs/progress/task4_driver_integration.md`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/docs/progress/task4_driver_integration.md)
+* [`docs/progress/stage3_driver_integration.md`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/docs/progress/stage3_driver_integration.md)
 
 ---
 
 ### 5. Files Modified
 
-* [`include/DeviceSensor.h`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/DeviceSensor.h) & [`src/DeviceSensor.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/DeviceSensor.cpp): Refined with exact Task 4 API signatures (`readTemperature`, `setTemperature`, `getStatus`, `getLastError`).
+* [`include/DeviceSensor.h`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/DeviceSensor.h) & [`src/DeviceSensor.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/DeviceSensor.cpp): Refined with exact Stage 3 API signatures (`readTemperature`, `setTemperature`, `getStatus`, `getLastError`).
 * [`include/alert_system.h`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/alert_system.h) & [`src/alert_system.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/alert_system.cpp): Added storage condition alert queuing into the STL priority queue.
 * [`src/main.cpp`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/main.cpp): Wired storage monitor and device sensor into the CLI dashboard.
 * [`Makefile`](file:///C:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/Makefile): Updated to compile `StorageMonitor.o`, `bin/device_sensor_test`, and execute all test targets.
@@ -110,7 +110,7 @@ If `/dev/medisave` is unavailable (e.g. driver not loaded, missing node, or non-
 
 ---
 
-### 11. Next Task
+### 11. Next Stage
 
 **Linux Processes + IPC + Signals**
 * Inter-process communication (Pipes / Shared Memory).

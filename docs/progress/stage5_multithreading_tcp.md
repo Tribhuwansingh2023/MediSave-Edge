@@ -1,19 +1,19 @@
-# MediSave Edge — Task 6 Progress Report
-## Multithreading & TCP Client/Server Facility Communication
+# MediSave Edge — Stage 5 Progress Report
+## Stage 5: Multithreading & TCP Client/Server Facility Communication
 
 **Student / Author:** Tribhuwan Singh  
 **Project:** MediSave Edge — Linux-Based Medicine Storage Monitoring, Inventory Alert & Redistribution Decision System  
-**Component:** Task 6 — C++ Multithreading & TCP Client/Server Socket Network  
+**Component:** Stage 5 — C++ Multithreading & TCP Client/Server Socket Network  
 **Date:** October 2026  
 
 ---
 
 ## 1. Objective
 
-Task 6 expands the MediSave Edge system by introducing concurrent in-process worker threads and an inter-facility networking layer:
+Stage 5 expands the MediSave Edge system by introducing concurrent in-process worker threads and an inter-facility networking layer:
 1. **Multithreading:** In-process concurrency using `std::thread`, `std::mutex`, `std::condition_variable`, and a producer-consumer alert queue.
 2. **TCP Client/Server:** Point-to-point inter-facility communication simulating distributed medicine storage depots exchanging surplus and shortage notices.
-3. **Redistribution Preparation:** In-memory structured buffering of remote facility requests ready for consumption by Task 7.
+3. **Redistribution Preparation:** In-memory structured buffering of remote facility requests ready for consumption by Stage 6.
 
 ---
 
@@ -43,7 +43,7 @@ Facilities broadcast their surplus and deficit positions to the coordination ser
 Facility-A|Paracetamol|P2026A|150|SURPLUS
 Facility-B|Paracetamol|P2026A|20|SHORTAGE
 ```
-The server buffers these entries in a thread-safe structure (`struct FacilityMessage`), establishing the foundation for Task 7 redistribution optimization.
+The server buffers these entries in a thread-safe structure (`struct FacilityMessage`), establishing the foundation for Stage 6 redistribution optimization.
 
 ---
 
@@ -73,12 +73,12 @@ The server buffers these entries in a thread-safe structure (`struct FacilityMes
 ---
 
 ## 6. Known Limitations
-- Graph matching and priority-weighted redistribution algorithms are deferred to Task 7.
+- Graph matching and priority-weighted redistribution algorithms are deferred to Stage 6.
 - External internet routable networking is intentionally avoided; communication is modeled on localhost.
 
 ---
 
-## 7. Next Milestone (Task 7)
+## 7. Next Milestone (Stage 6)
 - **Redistribution Decision Engine:** Automated matching algorithm pairing shortage facilities with nearest surplus facilities based on expiry urgency and stock limits.
 - **System Monitoring Dashboard:** Integrated telemetry and network overview.
 - **Final Packaging & End-to-End Evaluation.**

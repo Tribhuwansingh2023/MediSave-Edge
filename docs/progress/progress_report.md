@@ -1,5 +1,5 @@
 # MediSave Edge
-## 7–8 Day Consolidated Project Progress Report
+## Master Consolidated Project Progress Report
 
 ---
 
@@ -19,6 +19,14 @@
 - **Kernel/Driver Technology:** Linux Loadable Kernel Module (LKM), Character Device Driver (`/dev/medisave`)
 - **Architecture Model:** Layered Hardware/Software & User-Space / Kernel-Space Architecture
 - **Submission Context:** Capstone Evaluation / Trainer Viva Presentation (Deadline: 5 October 2026)
+
+### Project Stages
+1. [**Stage 1: Inventory**](stage1_inventory.md) — Core C++ inventory management, medicine data models, expiry triage, and file persistence.
+2. [**Stage 2: Device Driver**](stage2_device_driver.md) — Linux character device driver (`medisave_driver.ko`), VFS operations, and IOCTL control plane.
+3. [**Stage 3: Driver Integration**](stage3_driver_integration.md) — C++ user-space HAL (`DeviceSensor`), chamber monitoring (`StorageMonitor`), and fallback handling.
+4. [**Stage 4: Process and IPC**](stage4_process_ipc.md) — Multi-process worker supervisor (`fork`/`exec`), anonymous pipes, POSIX shared memory, and semaphores.
+5. [**Stage 5: Multithreading and TCP**](stage5_multithreading_tcp.md) — In-process concurrency (`std::thread`, `std::mutex`, `std::condition_variable`) and distributed TCP client/server sockets.
+6. [**Stage 6: Final Features**](stage6_final_features.md) — Redistribution recommendation engine, `/proc` virtual filesystem telemetry, and executive CLI dashboard.
 
 ---
 
@@ -128,31 +136,21 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 6. DAY 1 — Project Definition, Architecture & Repository Setup
+### 6. Stage 1: Inventory — C++ Medicine Domain, Expiry Triage & Alert Engine
 
-- **Activities & Achievements:**
+- **Project Definition & Repository Setup:**
   - Formulated problem statement focused on pharmaceutical storage integrity and clinic redistribution.
   - Selected project title: *MediSave Edge — Linux-Based Medicine Storage Monitoring, Inventory Alert and Redistribution Decision System*.
   - Architected modular subsystem layout: `driver/`, `include/`, `src/`, `tests/`, `data/`, `docs/`.
   - Established coding standard: Strict C++17 RAII in user space, standard C99 with kernel guidelines in driver space, Makefile build configuration with `-Wall -Wextra -pthread`.
   - Initialized Git repository tracking and defined initial `.gitignore` filters.
-
----
-
-### 7. DAY 2 — C++ Medicine Domain & Inventory Module
-
-- **Activities & Achievements:**
+- **C++ Medicine Domain & Inventory Module:**
   - Implemented [Medicine](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/Medicine.h) entity class capturing ID, Name, Batch Number, Quantity, Minimum Stock, Maximum Stock, Expiry Date, and acceptable temperature ranges ($T_{min}$, $T_{max}$).
   - Enforced strict validation: rejected negative quantities, invalid dates, inverted temperature thresholds, and empty strings.
   - Developed [InventoryManager](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/InventoryManager.h) utilizing an in-memory `std::unordered_map<std::string, Medicine>` for $O(1)$ lookup performance.
   - Created flat-file CSV serializer and deserializer (`data/medicines.txt`) with header validation, populated with 25 realistic medicine records covering cold-chain, room-temperature, expired, expiring-soon, and low-stock categories.
-  - Developed initial test harness ([tests/test_inventory.cpp](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/tests/test_inventory.cpp)) covering 35 unit test cases (CRUD, duplicate rejection, substring search, file persistence).
-
----
-
-### 8. DAY 3 — Expiry Detection & Priority Alert Engine
-
-- **Activities & Achievements:**
+  - Developed initial test harness ([tests/test_inventory.cpp](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/tests/test_inventory.cpp)) covering unit test cases (CRUD, duplicate rejection, substring search, file persistence).
+- **Expiry Detection & Priority Alert Engine:**
   - Implemented calendar calculation utility ([include/expiry_utils.h](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/expiry_utils.h)) calculating exact day offsets relative to system reference dates.
   - Established 4-tier expiry triage categories:
     - `EXPIRED` ($\text{days} < 0$): Immediate quarantine.
@@ -164,7 +162,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 9. DAY 4 — Linux Character Device Driver
+### 7. Stage 2: Device Driver — Linux Character Device Driver (`/dev/medisave`)
 
 - **Activities & Achievements:**
   - Implemented complete Linux Loadable Kernel Module ([driver/medisave_driver.c](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/driver/medisave_driver.c)).
@@ -179,7 +177,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 10. DAY 5 — C++ ↔ Driver Hardware Abstraction & Integration
+### 8. Stage 3: Driver Integration — C++ Hardware Abstraction & Storage Monitor
 
 - **Activities & Achievements:**
   - Created [DeviceSensor](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/DeviceSensor.h) encapsulating POSIX `open()`, `read()`, `write()`, and `ioctl()` calls on `/dev/medisave`.
@@ -189,7 +187,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 11. DAY 6 — Linux Multi-Process Architecture & IPC
+### 9. Stage 4: Process and IPC — Linux Multi-Process Architecture & IPC
 
 - **Activities & Achievements:**
   - Created dedicated worker process binary `bin/monitor_worker` ([src/monitor_worker.cpp](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/monitor_worker.cpp)) that samples sensor hardware in an isolated address space.
@@ -203,7 +201,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 12. DAY 7 — Multithreading Concurrency & TCP Networking
+### 10. Stage 5: Multithreading and TCP — Multithreading Concurrency & TCP Networking
 
 - **Activities & Achievements:**
   - Implemented in-process multithreading ([include/ThreadedMonitor.h](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/ThreadedMonitor.h)):
@@ -213,7 +211,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
     - Clean thread shutdown with atomic flags and guaranteed `.join()`.
   - Implemented cross-platform socket abstraction layer ([include/SocketCompat.h](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/SocketCompat.h)).
   - Implemented multi-client TCP server ([src/TcpServer.cpp](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/TcpServer.cpp)) and client ([src/TcpClient.cpp](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/TcpClient.cpp)) communicating over port 5000.
-  - **Bug Fix & Reliability Enhancement:**
+  - **Reliability Enhancements:**
     - Resolved accept thread blockages by incorporating a 100ms `select()` timeout and calling `shutdownSocket(serverSocket, SHUT_RDWR)` prior to `closeSocketFd()`.
     - Ensured server listening sockets are closed exactly once via atomic exchange (`serverSocket.exchange(INVALID_SOCKET_FD)`).
     - Enforced strict 5-field message validation (`FACILITY|MEDICINE|BATCH|QUANTITY|TYPE`) in [include/TcpProtocol.h](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/TcpProtocol.h), rejecting empty fields, non-numeric quantities, non-positive counts, and invalid types with descriptive error responses (`ERR|<reason>`).
@@ -221,7 +219,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 13. DAY 8 — Redistribution Engine, /proc Telemetry & Final Submission
+### 11. Stage 6: Final Features — Redistribution Engine, /proc Telemetry & Executive Dashboard
 
 - **Activities & Achievements:**
   - Developed [RedistributionEngine](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/include/RedistributionEngine.h):
@@ -235,12 +233,12 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
     - `/proc/meminfo` (Total RAM, Free RAM, Available RAM, and memory usage percentage).
     - `/proc/uptime` (Total system uptime in seconds formatted to days, hours, minutes).
   - Integrated single-screen Executive Dashboard ([SystemMonitor::displaySystemDashboard](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/src/SystemMonitor.cpp)) aggregating Storage, Inventory, Redistribution, Host Health, and Service statuses.
-  - Rebuilt and validated master [Makefile](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/Makefile) supporting `all`, `clean`, `test`, `driver`, `driver-load`, `driver-unload`, and `driver-test`.
+  - Rebuilt and validated master [Makefile](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/Makefile) supporting `all`, `clean`, `test`, `driver`, `driver-clean`, and `driver-test`.
   - Authored comprehensive documentation suite: [README.md](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/README.md), [docs/architecture/final_system_architecture.md](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/docs/architecture/final_system_architecture.md), 5 PlantUML diagrams ([docs/uml/](file:///c:/Users/tribh/.gemini/antigravity-ide/scratch/MediSave-Edge/docs/uml/)), requirements specifications, test results, and trainer demo scripts.
 
 ---
 
-### 14. Final Feature Matrix
+### 12. Final Feature Matrix
 
 | Requirement / Module | Implementation Reference | Status |
 |---|---|---|
@@ -267,7 +265,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 15. Testing Summary
+### 13. Testing Summary
 
 | Test Suite | Binary Executable | Tests / Scope | Actual Execution Result | Status |
 |---|---|---|---|---|
@@ -283,7 +281,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 16. Known Limitations
+### 14. Known Limitations
 
 1. **Simulated Sensor Registers:** The Linux character driver simulates sensor registers in kernel RAM rather than reading from physical hardware ADC/I2C buses.
 2. **Prototype Threshold Configuration:** Configurable default ranges (e.g., $2.0\,^{\circ}\text{C}$ to $8.0\,^{\circ}\text{C}$) serve as prototype demonstration defaults and do not reflect universal clinical specifications for all pharmaceuticals.
@@ -292,7 +290,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 17. Security and Safety Considerations
+### 15. Security and Safety Considerations
 
 1. **Kernel/User Space Memory Isolation:** All data crossing between user space and kernel space utilizes `copy_to_user()` and `copy_from_user()`, preventing user-space pointer dereferences inside Ring 0.
 2. **Device Node Access Permissions:** Rapid local testing utilizes temporary permissions (`sudo chmod 666 /dev/medisave`). Production deployments should install a restricted udev rule:
@@ -305,7 +303,7 @@ Public healthcare supply chains and decentralized medical dispensaries face thre
 
 ---
 
-### 18. Git & Version Control Progress
+### 16. Git & Version Control Progress
 
 The repository reflects an authentic progression of conventional commits:
 
@@ -334,7 +332,7 @@ The repository reflects an authentic progression of conventional commits:
 
 ---
 
-### 19. Final Project Status
+### 17. Final Project Status
 
 | Project Dimension | Evaluation Status |
 |---|---|
@@ -349,7 +347,7 @@ The repository reflects an authentic progression of conventional commits:
 
 ---
 
-### 20. Future Scope
+### 18. Future Scope
 
 1. **Hardware Bus Integration:** Replace simulated sensor registers with kernel-space I2C (`i2c_smbus_read_word_data`) or SPI drivers reading physical TMP102 / DHT22 digital sensors.
 2. **Secure Communication (TLS/SSL):** Upgrade inter-facility TCP sockets with OpenSSL / mbedTLS encryption and mutual certificate authentication.
@@ -359,6 +357,6 @@ The repository reflects an authentic progression of conventional commits:
 
 ---
 
-### 21. Conclusion
+### 19. Conclusion
 
 **MediSave Edge** demonstrates comprehensive mastery of Linux systems engineering and modern C++ development. By linking a real Linux kernel character device driver in Ring 0 with user-space POSIX IPC channels, multi-process supervisors, multi-threaded alert queues, non-blocking TCP network synchronization, and virtual host monitoring, the project provides a robust, trainer-ready prototype that satisfies all capstone evaluation criteria.

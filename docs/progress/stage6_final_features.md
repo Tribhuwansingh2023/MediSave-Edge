@@ -1,7 +1,7 @@
-# Task 7 — Temperature Monitoring, Redistribution Engine & System Integration Report
+# Stage 6 — Temperature Monitoring, Redistribution Engine & System Integration Report
 
 ## Executive Summary
-Task 7 completes the core feature development lifecycle for **MediSave Edge**. It successfully unifies environmental telemetry from the Linux character driver, distributed inter-facility inventory balances, automated advisory redistribution recommendations, host system health monitoring via `/proc`, and an executive system dashboard into a single, cohesive C++17 application.
+Stage 6 completes the core feature development lifecycle for **MediSave Edge**. It successfully unifies environmental telemetry from the Linux character driver, distributed inter-facility inventory balances, automated advisory redistribution recommendations, host system health monitoring via `/proc`, and an executive system dashboard into a single, cohesive C++17 application.
 
 ---
 

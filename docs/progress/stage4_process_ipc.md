@@ -1,16 +1,16 @@
-# MediSave Edge — Task 5 Progress Report
-## Linux Processes, IPC & Signal Handling Subsystem
+# MediSave Edge — Stage 4 Progress Report
+## Stage 4: Linux Processes, IPC & Signal Handling Subsystem
 
 **Student / Author:** Tribhuwan Singh  
 **Project:** MediSave Edge — Linux-Based Medicine Storage Monitoring, Inventory Alert & Redistribution Decision System  
-**Component:** Task 5 — Multi-Process Telemetry, Inter-Process Communication & POSIX Signal Handling  
+**Component:** Stage 4 — Multi-Process Telemetry, Inter-Process Communication & POSIX Signal Handling  
 **Date:** October 2026  
 
 ---
 
 ## 1. Objective
 
-The primary objective of Task 5 is to transition MediSave Edge from a single-process monolithic executable into a decoupled, robust multi-process architecture. Telemetry acquisition from `/dev/medisave` is separated into an isolated background worker process using standard Linux POSIX system programming primitives:
+The primary objective of Stage 4 is to transition MediSave Edge from a single-process monolithic executable into a decoupled, robust multi-process architecture. Telemetry acquisition from `/dev/medisave` is separated into an isolated background worker process using standard Linux POSIX system programming primitives:
 - `fork()` process cloning
 - `exec()` executable replacement (`bin/monitor_worker`)
 - `waitpid()` process synchronization and zombie elimination
@@ -174,13 +174,13 @@ MediSave Edge stopped safely.
 ---
 
 ## 11. Known Limitations & Boundaries
-- Multi-threading (`std::thread`, `std::mutex`, `condition_variable`) is intentionally deferred to Task 6.
-- TCP socket communication and inter-facility networking are intentionally deferred to Task 6.
+- Multi-threading (`std::thread`, `std::mutex`, `condition_variable`) is intentionally deferred to Stage 5.
+- TCP socket communication and inter-facility networking are intentionally deferred to Stage 5.
 - Redistribution graph algorithms and shortage matching are scheduled for subsequent modules.
 
 ---
 
-## 12. Next Milestone (Task 6)
+## 12. Next Milestone (Stage 5)
 - **POSIX Multithreading:** In-process concurrent threads for alarm dispatching and async heartbeat timers.
 - **TCP Client/Server Sockets:** Inter-facility communication for medicine redistribution requests.
 - **Redistribution Decision Engine:** Shortage/surplus matching algorithm based on storage stability and expiration thresholds.

@@ -81,8 +81,8 @@ A comprehensive audit was performed across the entire MediSave Edge repository p
 * Updated `README.md`, `driver/README.md`, and progress reports with explicit clinical disclaimers stating:
   - "The prototype uses configurable temperature thresholds for demonstration. Sample/default thresholds (such as 2.0°C to 8.0°C for refrigerated cold-chain items) are used for the demo and should not be interpreted as universal storage requirements for all medicines."
 
-### F. Consolidated 7–8 Day Progress Report (PART 10)
-* Created `docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md` providing a single, unified, 21-chapter report detailing the entire development journey from Day 1 through Day 8.
+### F. Consolidated Progress Report (PART 10)
+* Created `docs/progress/progress_report.md` providing a single, unified, 21-chapter report detailing the entire development journey across all stages.
 
 ---
 
@@ -296,7 +296,7 @@ All 8 MediSave Edge test suites completed!
 | Document | Path | Status |
 |---|---|---|
 | **Main Project README** | `README.md` | **COMPLETE & SYNCHRONIZED** (Updated with udev rule, threshold disclaimers, and test results) |
-| **Consolidated Progress Report** | `docs/progress/MediSave_Edge_7_8_Day_Consolidated_Progress_Report.md` | **COMPLETE** (21 chapters covering Day 1 through Day 8) |
+| **Consolidated Progress Report** | `docs/progress/progress_report.md` | **COMPLETE** (21 chapters covering all project stages) |
 | **Trainer Demonstration Script** | `docs/demo/trainer_demo.md` | **COMPLETE** (5–10 minute timeline from 0:00 to 10:00) |
 | **Final Test Results** | `docs/testing/test_results.md` | **COMPLETE** (Sections A through K) |
 | **Final System Architecture** | `docs/architecture/final_system_architecture.md` | **COMPLETE** (Ring 0 vs Ring 3 boundaries, IPC, TCP) |
